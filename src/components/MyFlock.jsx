@@ -2,13 +2,17 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import moment from 'moment';
+import ReusableSortableTable from './ReusableSortableTable';
 
 const MyFlock = () => {
+  const [showAddFlockButton, setShowAddFlockButton] = useState(false);
   const [flocks, setFlocks] = useState([]);
   const navigate = useNavigate();
   const token = localStorage.getItem('accessToken');
 
   useEffect(() => {
+    const userRole = localStorage.getItem('userRole');
+    setShowAddFlockButton(userRole === '0' || userRole === '1');
     const fetchFlocks = async () => {
       try {
         const response = await axios.get('http://localhost:8800/flock', {
@@ -25,89 +29,71 @@ const MyFlock = () => {
     fetchFlocks();
   }, [token]);
 
-  const handleFlockClick = (flock_id) => {
-    navigate(`/myflock/${flock_id}`);
-  };
+  const columns = [
+    { id: 'flock_id', label: 'Flock No' },
+    {
+      id: 'caretaker_farmer',
+      label: 'Caretaker Farmer',
+      render: (value) => (
+        <span className="px-2 inline-flex text-xs md:text-sm leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+          {value}
+        </span>
+      ),
+    },
+    {
+      id: 'quantity',
+      label: 'Quantity',
+      render: (value) => (
+        <span className="px-2 inline-flex text-xs md:text-sm leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+          {value}
+        </span>
+      ),
+    },
+    { id: 'nepali_date', label: 'Placement Nepali Date' },
+    {
+      id: 'english_date',
+      label: 'English Date',
+      render: (value) => moment(value).format('YYYY-MM-DD'),
+    },
+    { id: 'address', label: 'Address' },
+    {
+      id: 'Location',
+      label: 'Location',
+      render: (value) => (
+        <a
+          href={`https://www.google.com/maps?q=${value}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-600 hover:underline"
+          onClick={(e) => e.stopPropagation()}
+        >
+          View Location
+        </a>
+      ),
+    },
+  ];
 
   return (
     <div className="p-4">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl md:text-2xl font-bold">My Flocks</h2>
-        <button
-          className="bg-blue-600 text-white px-3 py-2 md:px-4 md:py-2 rounded-lg hover:bg-blue-700 transition"
-          onClick={() => navigate('/addflock')}
-        >
-          Add Flock
-        </button>
+        {showAddFlockButton && (
+          <button
+            className="bg-blue-600 text-white px-3 py-2 md:px-4 md:py-2 rounded-lg hover:bg-blue-700 transition"
+            onClick={() => navigate('/addflock')}
+          >
+            Add Flock
+          </button>
+        )}
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="min-w-full bg-white border border-gray-200 text-sm md:text-base">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="px-3 md:px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">
-                Flock No
-              </th>
-              <th className="px-3 md:px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">
-                Caretaker Farmer
-              </th>
-              <th className="px-3 md:px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">
-                Quantity
-              </th>
-              <th className="px-3 md:px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">
-                Placement Nepali Date
-              </th>
-              <th className="px-3 md:px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">
-                English Date
-              </th>
-              <th className="px-3 md:px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">
-                Location
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {flocks.map((flock, index) => (
-              <tr
-                key={flock.id}
-                className={`cursor-pointer ${
-                  index % 2 === 0 ? 'bg-gray-50' : ''
-                } hover:bg-gray-200 transition`}
-                onClick={() => handleFlockClick(flock.id)}
-              >
-                <td className="px-3 md:px-6 py-4 whitespace-nowrap">
-                  {flock.flock_id}
-                </td>
-                <td className="px-3 md:px-6 py-4 whitespace-nowrap">
-                  <span className="px-2 inline-flex text-xs md:text-sm leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                    {flock.caretaker_farmer}
-                  </span>
-                </td>
-                <td className="px-3 md:px-6 py-4 whitespace-nowrap">
-                  <span className="px-2 inline-flex text-xs md:text-sm leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                    {flock.quantity}
-                  </span>
-                </td>
-                <td className="px-3 md:px-6 py-4 whitespace-nowrap">
-                  {flock.nepali_date}
-                </td>
-                <td className="px-3 md:px-6 py-4 whitespace-nowrap">
-                  {moment(flock.english_date).format('YYYY-MM-DD')}
-                </td>
-                <td className="px-3 md:px-6 py-4 whitespace-nowrap">
-                  <a
-                    href={`https://www.google.com/maps?q=${flock.Location}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline"
-                  >
-                    View Location
-                  </a>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <ReusableSortableTable
+        columns={columns}
+        rows={flocks}
+        defaultSortColumn="flock_id"
+        navigateOnClick={true}
+        getNavigationPath={(row) => `/myflock/${row.id}`}
+      />
     </div>
   );
 };

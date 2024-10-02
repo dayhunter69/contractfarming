@@ -8,7 +8,7 @@ function Capture() {
   const [error, setError] = useState('');
   const [uploadStatus, setUploadStatus] = useState('');
   const [loading, setLoading] = useState(false); // State to handle loading
-  const backendUrl = 'http://192.168.1.72:8800';
+  const backendUrl = 'http://localhost:8800';
   const navigate = useNavigate();
 
   const handleFile = (e) => {

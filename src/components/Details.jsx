@@ -42,6 +42,7 @@ const Details = () => {
 
   return (
     <div className="p-4 max-w-4xl mx-auto">
+      {/* Flock Summary section */}
       <div className="bg-white shadow-md rounded-lg mb-6 overflow-hidden">
         <div className="bg-gray-100 px-4 py-3 border-b border-gray-200">
           <h2 className="text-xl font-semibold text-gray-800">Flock Summary</h2>
@@ -50,6 +51,7 @@ const Details = () => {
           <DetailItem label="Flock ID" value={flock.flock_id} />
           <DetailItem label="Caretaker" value={flock.caretaker_farmer} />
           <DetailItem label="Quantity" value={flock.quantity} />
+          <DetailItem label="Address" value={flock.address} />
           <DetailItem label="Location" value={flock.Location} />
           <DetailItem label="Placement Nepali Date" value={flock.nepali_date} />
           <DetailItem
@@ -57,10 +59,25 @@ const Details = () => {
             value={moment(flock.english_date).format('YYYY-MM-DD')}
           />
           <DetailItem label="Assigned To" value={flock.assigned_to} />
-          <DetailItem label="Image Location" value={flock.image_location} />
+
+          {flock.image_location && (
+            <div className="mt-4 flex justify-between items-center">
+              <h3 className="text-lg font-medium text-gray-700">Flock Image</h3>
+              <img
+                src={`http://localhost:8800/uploads/${flock.image_location
+                  .split('/')
+                  .pop()}`}
+                alt="Flock"
+                className="rounded-lg shadow-md"
+                height={100}
+                width={100}
+              />
+            </div>
+          )}
         </div>
       </div>
 
+      {/* Flock Detail section */}
       <div className="bg-white shadow-md rounded-lg overflow-hidden">
         <div className="bg-gray-100 px-4 py-3 border-b border-gray-200">
           <h2 className="text-xl font-semibold text-gray-800">Flock Detail</h2>
@@ -99,6 +116,22 @@ const Details = () => {
               value={flockDetail.b2_consumption}
             />
           </div>
+          {flockDetail.image_mortality && (
+            <div className="mt-4 flex justify-between items-center">
+              <h3 className="text-lg font-medium text-gray-700">
+                Mortality Image
+              </h3>
+              <img
+                src={`http://localhost:8800/uploads/${flockDetail.image_mortality
+                  .split('/')
+                  .pop()}`}
+                alt="Mortality"
+                className="rounded-lg shadow-md"
+                height={200}
+                width={200}
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>

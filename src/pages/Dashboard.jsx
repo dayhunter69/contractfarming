@@ -1,11 +1,18 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import HomeComponent from '../components/HomeComponent';
+import AdminDashboard from '../components/AdminDashboard';
 
 const Dashboard = () => {
+  const [showUserTab, setShowUserTab] = useState(false);
+
+  useEffect(() => {
+    const userRole = localStorage.getItem('userRole');
+    setShowUserTab(userRole === '0' || userRole === '1');
+  }, []);
+
   return (
-    <div className="p-4">
-      <h1 className="text-2xl font-semibold mb-4">Dashboard</h1>
-      <HomeComponent />
+    <div className="">
+      {showUserTab ? <AdminDashboard /> : <HomeComponent />}
     </div>
   );
 };

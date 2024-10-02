@@ -5,6 +5,8 @@ import axios from 'axios';
 const AddFlock = () => {
   const navigate = useNavigate();
   const [users, setUsers] = useState([]);
+  const [selectedFile, setSelectedFile] = useState(null);
+
   const [formData, setFormData] = useState({
     assigned_to: '',
     Location: '',
@@ -13,7 +15,7 @@ const AddFlock = () => {
     nepali_date: '',
     english_date: new Date().toISOString().split('T')[0],
     quantity: 0,
-    image_location: '',
+    address: '',
   });
 
   useEffect(() => {
@@ -40,27 +42,44 @@ const AddFlock = () => {
     setFormData({ ...formData, [name]: value });
   };
 
+  const handleFileChange = (e) => {
+    setSelectedFile(e.target.files[0]);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const accessToken = localStorage.getItem('accessToken');
 
+    const formDataToSend = new FormData();
+    for (const key in formData) {
+      formDataToSend.append(key, formData[key]);
+    }
+    if (selectedFile) {
+      formDataToSend.append('image', selectedFile);
+    }
+
+    console.log('FormData to be sent:', Object.fromEntries(formDataToSend));
+
     try {
       const response = await axios.post(
         'http://localhost:8800/flock',
-        formData,
+        formDataToSend,
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
+            'Content-Type': 'multipart/form-data',
           },
         }
       );
 
       console.log('Flock created:', response.data);
       alert(`Flock created successfully. Flock ID: ${response.data.flockId}`);
-      navigate('/dashboard');
+      navigate('/myflock');
     } catch (error) {
-      console.error('Error creating flock:', error);
+      console.error(
+        'Error creating flock:',
+        error.response ? error.response.data : error.message
+      );
       alert('Failed to create flock. Please try again.');
     }
   };
@@ -91,7 +110,6 @@ const AddFlock = () => {
             ))}
           </select>
         </div>
-        {/* Rest of the form fields remain unchanged */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Location <span className="text-red-500">*</span>
@@ -103,7 +121,21 @@ const AddFlock = () => {
             onChange={handleChange}
             required
             className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-            placeholder="Enter location"
+            placeholder="Longitude & Latitude Coordinates"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Address <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            name="address"
+            value={formData.address}
+            onChange={handleChange}
+            required
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            placeholder="Enter Address"
           />
         </div>
         <div>
@@ -176,15 +208,12 @@ const AddFlock = () => {
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Image Location
+            Image Upload
           </label>
           <input
-            type="text"
-            name="image_location"
-            value={formData.image_location}
-            onChange={handleChange}
+            type="file"
+            onChange={handleFileChange}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-            placeholder="Enter image location"
           />
         </div>
         <div>

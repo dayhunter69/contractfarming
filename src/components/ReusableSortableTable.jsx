@@ -1,7 +1,5 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import axios from 'axios';
-import moment from 'moment';
+import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Download, Printer, ChevronDown, Filter } from 'lucide-react';
 
 const Dropdown = ({
@@ -45,7 +43,7 @@ const Dropdown = ({
 
       {isOpen && (
         <div
-          className="origin-top-right absolute left-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10"
+          className="origin-top-right absolute ml-1 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="py-1">{children}</div>
@@ -55,57 +53,35 @@ const Dropdown = ({
   );
 };
 
-const FlockDetail = () => {
-  const { flockId } = useParams();
-  const [flockDetails, setFlockDetails] = useState([]);
-  const navigate = useNavigate();
-  const token = localStorage.getItem('accessToken');
-  const [orderBy, setOrderBy] = useState('english_date');
+const ReusableSortableTable = ({
+  columns,
+  rows,
+  defaultSortColumn = '',
+  navigateOnClick,
+  getNavigationPath,
+}) => {
+  const [orderBy, setOrderBy] = useState(defaultSortColumn);
   const [order, setOrder] = useState('asc');
-  const [visibleColumns, setVisibleColumns] = useState([
-    'nepali_date',
-    'english_date',
-    'age_days',
-    'num_birds',
-    'mortality_birds',
-    'mortality_reason',
-    'medicine',
-  ]);
+  const [visibleColumns, setVisibleColumns] = useState(
+    columns.map((col) => col.id)
+  );
   const [filterColumn, setFilterColumn] = useState('');
   const [filterValue, setFilterValue] = useState('');
   const [density, setDensity] = useState('standard');
   const [activeDropdown, setActiveDropdown] = useState(null);
-
-  useEffect(() => {
-    const fetchFlockDetails = async () => {
-      try {
-        const response = await axios.get(
-          `http://localhost:8800/flock-details/${flockId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-        setFlockDetails(response.data);
-      } catch (error) {
-        console.error('Error fetching flock details:', error);
-      }
-    };
-
-    fetchFlockDetails();
-  }, [flockId, token]);
-
-  const handleRowClick = (detail) => {
-    navigate(`/myflock/${flockId}/details`, {
-      state: { flockDetail: detail },
-    });
-  };
+  const navigate = useNavigate();
 
   const handleSort = (property) => () => {
     const isAsc = orderBy === property && order === 'asc';
     setOrder(isAsc ? 'desc' : 'asc');
     setOrderBy(property);
+  };
+
+  const handleRowClick = (row) => {
+    if (navigateOnClick && getNavigationPath) {
+      const path = getNavigationPath(row);
+      navigate(path);
+    }
   };
 
   const handleColumnToggle = (columnId) => {
@@ -126,11 +102,13 @@ const FlockDetail = () => {
   };
 
   const exportCSV = () => {
-    const headers = visibleColumns.join(',');
+    const headers = visibleColumns
+      .map((id) => columns.find((col) => col.id === id).label)
+      .join(',');
     const csvContent = [
       headers,
-      ...filteredSortedFlockDetails.map((detail) =>
-        visibleColumns.map((id) => detail[id]).join(',')
+      ...filteredSortedRows.map((row) =>
+        visibleColumns.map((id) => row[id]).join(',')
       ),
     ].join('\n');
 
@@ -139,7 +117,7 @@ const FlockDetail = () => {
     if (link.download !== undefined) {
       const url = URL.createObjectURL(blob);
       link.setAttribute('href', url);
-      link.setAttribute('download', 'flock_details.csv');
+      link.setAttribute('download', 'table_data.csv');
       link.style.visibility = 'hidden';
       document.body.appendChild(link);
       link.click();
@@ -149,9 +127,7 @@ const FlockDetail = () => {
 
   const printTable = () => {
     const printWindow = window.open('', '_blank');
-    printWindow.document.write(
-      '<html><head><title>Print Flock Details</title>'
-    );
+    printWindow.document.write('<html><head><title>Print Table</title>');
     printWindow.document.write(
       '<style>table { border-collapse: collapse; width: 100%; } th, td { border: 1px solid black; padding: 8px; text-align: left; }</style>'
     );
@@ -164,12 +140,12 @@ const FlockDetail = () => {
     printWindow.print();
   };
 
-  const filteredSortedFlockDetails = useMemo(() => {
-    let result = flockDetails;
+  const filteredSortedRows = useMemo(() => {
+    let result = rows;
 
     if (filterColumn && filterValue) {
-      result = result.filter((detail) =>
-        String(detail[filterColumn])
+      result = result.filter((row) =>
+        String(row[filterColumn])
           .toLowerCase()
           .includes(filterValue.toLowerCase())
       );
@@ -191,37 +167,17 @@ const FlockDetail = () => {
     }
 
     return result;
-  }, [flockDetails, filterColumn, filterValue, orderBy, order]);
+  }, [rows, filterColumn, filterValue, orderBy, order]);
 
   const densityClasses = {
     compact: 'py-2',
-    standard: 'py-4',
-    comfortable: 'py-6',
+    standard: 'py-3',
+    comfortable: 'py-4',
   };
 
-  const columns = [
-    { id: 'nepali_date', label: 'Nepali Date' },
-    { id: 'english_date', label: 'English Date' },
-    { id: 'age_days', label: 'Age (Days)' },
-    { id: 'num_birds', label: 'Number of Birds' },
-    { id: 'mortality_birds', label: 'Mortality' },
-    { id: 'mortality_reason', label: 'Mortality Reason' },
-    { id: 'medicine', label: 'Medicine' },
-  ];
-
   return (
-    <div className="p-4">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl md:text-2xl font-bold">Flock Details</h2>
-        <button
-          className="bg-blue-600 text-white px-3 py-2 md:px-4 md:py-2 rounded-lg hover:bg-blue-700 transition"
-          onClick={() => navigate(`/myflock/${flockId}/addflockdetail/`)}
-        >
-          Daily Entry
-        </button>
-      </div>
-
-      <div className="flex flex-wrap justify-between items-center bg-gray-900 text-white p-2 rounded-md mb-4">
+    <div className="space-y-4">
+      <div className="flex flex-wrap justify-between items-center bg-gray-900 text-white p-2 rounded-md">
         <div className="flex flex-wrap gap-2 mb-2 sm:mb-0">
           <Dropdown
             label="COLUMNS"
@@ -329,7 +285,7 @@ const FlockDetail = () => {
                 .map((column) => (
                   <th
                     key={column.id}
-                    className="bg-black text-white px-6 py-4 text-left text-xs font-medium uppercase tracking-wider cursor-pointer"
+                    className="bg-gray-900 text-white px-4 py-2 text-left text-xs font-medium uppercase tracking-wider cursor-pointer"
                     onClick={handleSort(column.id)}
                   >
                     {column.label}
@@ -343,24 +299,24 @@ const FlockDetail = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredSortedFlockDetails.map((detail, index) => (
+            {filteredSortedRows.map((row, index) => (
               <tr
-                key={detail.id}
+                key={row.id || index}
                 className={`cursor-pointer ${
                   index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                 } hover:bg-gray-100 transition`}
-                onClick={() => handleRowClick(detail)}
+                onClick={() => handleRowClick(row)}
               >
                 {columns
                   .filter((col) => visibleColumns.includes(col.id))
                   .map((column) => (
                     <td
                       key={column.id}
-                      className={`px-6 whitespace-nowrap text-sm font-medium text-gray-900 border-b border-gray-200 ${densityClasses[density]}`}
+                      className={`px-4 whitespace-nowrap text-sm font-medium text-gray-900 border-b border-gray-200 ${densityClasses[density]}`}
                     >
-                      {column.id === 'english_date'
-                        ? moment(detail[column.id]).format('YYYY-MM-DD')
-                        : detail[column.id]}
+                      {column.render
+                        ? column.render(row[column.id], row)
+                        : row[column.id]}
                     </td>
                   ))}
               </tr>
@@ -372,4 +328,4 @@ const FlockDetail = () => {
   );
 };
 
-export default FlockDetail;
+export default ReusableSortableTable;
