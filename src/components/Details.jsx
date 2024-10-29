@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
+import { X } from 'lucide-react';
 import axios from 'axios';
 import moment from 'moment';
 
@@ -9,6 +10,22 @@ const Details = () => {
   const [flock, setFlock] = useState(null);
   const flockDetail = location.state?.flockDetail;
   const token = localStorage.getItem('accessToken');
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [imageTitle, setImageTitle] = useState('');
+
+  const handleKeyDown = useCallback((event) => {
+    if (event.key === 'Escape') {
+      setSelectedImage(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Add event listener for ESC key
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleKeyDown]);
 
   useEffect(() => {
     const fetchFlock = async () => {
@@ -19,7 +36,6 @@ const Details = () => {
             headers: { Authorization: `Bearer ${token}` },
           }
         );
-        // Set the first item in the array as the flock data
         setFlock(response.data[0]);
       } catch (error) {
         console.error('Error fetching flock data:', error);
@@ -40,6 +56,59 @@ const Details = () => {
     </div>
   );
 
+  const ImageWithPopup = ({ src, alt, title }) => (
+    <img
+      src={`http://localhost:8800/uploads/${src.split('/').pop()}`}
+      alt={alt}
+      className="rounded-lg shadow-md cursor-pointer hover:opacity-90 transition-opacity"
+      height={200}
+      width={200}
+      onClick={() => {
+        setSelectedImage(src);
+        setImageTitle(title);
+      }}
+    />
+  );
+
+  const ImagePopup = () => {
+    if (!selectedImage) return null;
+
+    return (
+      <div
+        className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4"
+        onClick={(e) => {
+          // Close popup when clicking the overlay (outside the image)
+          if (e.target === e.currentTarget) {
+            setSelectedImage(null);
+          }
+        }}
+      >
+        <div className="relative max-w-6xl w-full bg-white rounded-lg shadow-xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-200 flex justify-between items-center">
+            <h3 className="text-xl font-semibold text-gray-800">
+              {imageTitle}
+            </h3>
+            <button
+              onClick={() => setSelectedImage(null)}
+              className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+            >
+              <X className="w-6 h-6 text-gray-600" />
+            </button>
+          </div>
+          <div className="overflow-auto max-h-[85vh]">
+            <img
+              src={`http://localhost:8800/uploads/${selectedImage
+                .split('/')
+                .pop()}`}
+              alt={imageTitle}
+              className="w-full h-auto object-contain"
+            />
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="p-4 max-w-4xl mx-auto">
       {/* Flock Summary section */}
@@ -59,18 +128,15 @@ const Details = () => {
             value={moment(flock.english_date).format('YYYY-MM-DD')}
           />
           <DetailItem label="Assigned To" value={flock.assigned_to} />
+          <DetailItem label="Corporative Name" value={flock.corporative_name} />
 
           {flock.image_location && (
             <div className="mt-4 flex justify-between items-center">
               <h3 className="text-lg font-medium text-gray-700">Flock Image</h3>
-              <img
-                src={`http://localhost:8800/uploads/${flock.image_location
-                  .split('/')
-                  .pop()}`}
+              <ImageWithPopup
+                src={flock.image_location}
                 alt="Flock"
-                className="rounded-lg shadow-md"
-                height={100}
-                width={100}
+                title="Flock Image"
               />
             </div>
           )}
@@ -92,6 +158,22 @@ const Details = () => {
             <DetailItem label="Age (Days)" value={flockDetail.age_days} />
             <DetailItem label="Number of Birds" value={flockDetail.num_birds} />
             <DetailItem label="Mortality" value={flockDetail.mortality_birds} />
+            <DetailItem
+              label="Number of Birds Sold"
+              value={flockDetail.number_of_birds_sold}
+            />
+            <DetailItem
+              label="Total Weight Sold"
+              value={flockDetail.net_weight_sold}
+            />
+            <DetailItem
+              label="Price per Kilogram"
+              value={flockDetail.price_per_kg}
+            />
+            <DetailItem
+              label="Revenue"
+              value={flockDetail.net_weight_sold * flockDetail.price_per_kg}
+            />
             <DetailItem
               label="Mortality Reason"
               value={flockDetail.mortality_reason}
@@ -121,19 +203,36 @@ const Details = () => {
               <h3 className="text-lg font-medium text-gray-700">
                 Mortality Image
               </h3>
-              <img
-                src={`http://localhost:8800/uploads/${flockDetail.image_mortality
-                  .split('/')
-                  .pop()}`}
+              <ImageWithPopup
+                src={flockDetail.image_mortality}
                 alt="Mortality"
-                className="rounded-lg shadow-md"
-                height={200}
-                width={200}
+                title="Mortality Image"
+              />
+            </div>
+          )}
+          {flockDetail.feed_image && (
+            <div className="mt-4 flex justify-between items-center">
+              <h3 className="text-lg font-medium text-gray-700">Feed Image</h3>
+              <ImageWithPopup
+                src={flockDetail.feed_image}
+                alt="Feed"
+                title="Feed Image"
+              />
+            </div>
+          )}
+          {flockDetail.field_image && (
+            <div className="mt-4 flex justify-between items-center">
+              <h3 className="text-lg font-medium text-gray-700">Field Image</h3>
+              <ImageWithPopup
+                src={flockDetail.field_image}
+                alt="Field"
+                title="Field Image"
               />
             </div>
           )}
         </div>
       </div>
+      <ImagePopup />
     </div>
   );
 };

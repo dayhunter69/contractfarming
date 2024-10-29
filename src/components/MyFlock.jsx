@@ -49,13 +49,14 @@ const MyFlock = () => {
         </span>
       ),
     },
-    { id: 'nepali_date', label: 'Placement Nepali Date' },
+    { id: 'nepali_date', label: 'Nepali Date' },
     {
       id: 'english_date',
       label: 'English Date',
       render: (value) => moment(value).format('YYYY-MM-DD'),
     },
     { id: 'address', label: 'Address' },
+    { id: 'corporative_name', label: 'Corporative' },
     {
       id: 'Location',
       label: 'Location',

@@ -7,7 +7,7 @@ const AddFlockDetail = () => {
   const navigate = useNavigate();
   const { flockId } = useParams();
   const cameraRef = useRef(null);
-
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     nepali_date: '',
     english_date: new Date().toISOString(),
@@ -15,6 +15,9 @@ const AddFlockDetail = () => {
     age_days: 0,
     num_birds: 0,
     mortality_birds: 0,
+    number_of_birds_sold: 0,
+    net_weight_sold: 0,
+    price_per_kg: 0,
     bps_stock: 0,
     b1_stock: 0,
     b2_stock: 0,
@@ -24,6 +27,8 @@ const AddFlockDetail = () => {
     mortality_reason: '',
     medicine: '',
     image_mortality: null,
+    feed_image: null,
+    field_image: null,
     flock_id: flockId || '',
   });
 
@@ -31,7 +36,12 @@ const AddFlockDetail = () => {
   const [errorMessage, setErrorMessage] = useState('');
   const [isFetchingLocation, setIsFetchingLocation] = useState(true);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
-  const [capturedImage, setCapturedImage] = useState(null);
+  const [currentImageType, setCurrentImageType] = useState(null);
+  const [capturedImages, setCapturedImages] = useState({
+    image_mortality: null,
+    feed_image: null,
+    field_image: null,
+  });
   const [facingMode, setFacingMode] = useState('environment');
 
   useEffect(() => {
@@ -122,6 +132,12 @@ const AddFlockDetail = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Prevent multiple submissions
+    if (isSubmitting) {
+      return;
+    }
+
     const accessToken = localStorage.getItem('accessToken');
     const requiredFields = [
       'nepali_date',
@@ -129,13 +145,6 @@ const AddFlockDetail = () => {
       'location',
       'age_days',
       'num_birds',
-      'mortality_birds',
-      'bps_stock',
-      'b1_stock',
-      'b2_stock',
-      'bps_consumption',
-      'b1_consumption',
-      'b2_consumption',
       'flock_id',
     ];
     const missingFields = requiredFields.filter((field) => !formData[field]);
@@ -145,12 +154,17 @@ const AddFlockDetail = () => {
       return;
     }
 
+    setIsSubmitting(true);
+
     const formDataToSend = new FormData();
     Object.keys(formData).forEach((key) => {
       if (key === 'english_date') {
         formDataToSend.append(key, formatDateForMySQL(formData[key]));
-      } else if (key === 'image_mortality' && formData[key]) {
-        formDataToSend.append(key, formData[key], 'captured_image.jpg');
+      } else if (
+        ['image_mortality', 'feed_image', 'field_image'].includes(key) &&
+        formData[key]
+      ) {
+        formDataToSend.append(key, formData[key], `${key}.jpg`);
       } else {
         formDataToSend.append(key, formData[key]);
       }
@@ -187,10 +201,13 @@ const AddFlockDetail = () => {
       alert(
         'Failed to create flock detail. Please check your connection and try again.'
       );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const openCamera = () => {
+  const openCamera = (imageType) => {
+    setCurrentImageType(imageType);
     setIsCameraOpen(true);
   };
 
@@ -199,12 +216,15 @@ const AddFlockDetail = () => {
   };
 
   const capturePhoto = () => {
-    if (cameraRef.current) {
+    if (cameraRef.current && currentImageType) {
       const imageSrc = cameraRef.current.takePhoto();
-      setCapturedImage(imageSrc);
+      setCapturedImages((prev) => ({
+        ...prev,
+        [currentImageType]: imageSrc,
+      }));
       setFormData((prevData) => ({
         ...prevData,
-        image_mortality: dataURLtoFile(imageSrc, 'captured_image.jpg'),
+        [currentImageType]: dataURLtoFile(imageSrc, `${currentImageType}.jpg`),
       }));
       closeCamera();
     }
@@ -222,18 +242,53 @@ const AddFlockDetail = () => {
     return new File([u8arr], filename, { type: mime });
   };
 
-  const removePhoto = () => {
-    setCapturedImage(null);
+  const removePhoto = (imageType) => {
+    setCapturedImages((prev) => ({
+      ...prev,
+      [imageType]: null,
+    }));
     setFormData((prevData) => ({
       ...prevData,
-      image_mortality: null,
+      [imageType]: null,
     }));
   };
 
   const closeCamera = () => {
     setIsCameraOpen(false);
+    setCurrentImageType(null);
   };
 
+  const renderImageInput = (imageType, label) => (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        {label}
+      </label>
+      {!capturedImages[imageType] ? (
+        <button
+          type="button"
+          onClick={() => openCamera(imageType)}
+          className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+        >
+          Take Photo
+        </button>
+      ) : (
+        <div className="relative">
+          <img
+            src={capturedImages[imageType]}
+            alt="Captured"
+            className="w-full h-auto rounded-lg"
+          />
+          <button
+            type="button"
+            onClick={() => removePhoto(imageType)}
+            className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full hover:bg-red-600 transition"
+          >
+            Remove
+          </button>
+        </div>
+      )}
+    </div>
+  );
   return (
     <div className="p-4 max-w-lg mx-auto">
       <h2 className="text-2xl font-bold mb-4">Add Flock Detail</h2>
@@ -308,98 +363,127 @@ const AddFlockDetail = () => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Mortality Birds <span className="text-red-500">*</span>
+              Number of Mortality Birds
             </label>
             <input
               type="number"
               name="mortality_birds"
               value={formData.mortality_birds}
               onChange={handleChange}
-              required
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Number of Birds Sold
+            </label>
+            <input
+              type="number"
+              name="number_of_birds_sold"
+              value={formData.number_of_birds_sold}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Net Weight Sold
+            </label>
+            <input
+              type="number"
+              name="net_weight_sold"
+              value={formData.net_weight_sold}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Price Per Kg
+            </label>
+            <input
+              type="number"
+              name="price_per_kg"
+              value={formData.price_per_kg}
+              onChange={handleChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg"
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              BPS Stock <span className="text-red-500">*</span>
+              BPS Stock
             </label>
             <input
               type="number"
               name="bps_stock"
               value={formData.bps_stock}
               onChange={handleChange}
-              required
               className="w-full px-3 py-2 border border-gray-300 rounded-lg"
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              B1 Stock <span className="text-red-500">*</span>
+              B1 Stock
             </label>
             <input
               type="number"
               name="b1_stock"
               value={formData.b1_stock}
               onChange={handleChange}
-              required
               className="w-full px-3 py-2 border border-gray-300 rounded-lg"
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              B2 Stock <span className="text-red-500">*</span>
+              B2 Stock
             </label>
             <input
               type="number"
               name="b2_stock"
               value={formData.b2_stock}
               onChange={handleChange}
-              required
               className="w-full px-3 py-2 border border-gray-300 rounded-lg"
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              BPS Consumption <span className="text-red-500">*</span>
+              BPS Consumption
             </label>
             <input
               type="number"
               name="bps_consumption"
               value={formData.bps_consumption}
               onChange={handleChange}
-              required
               className="w-full px-3 py-2 border border-gray-300 rounded-lg"
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              B1 Consumption <span className="text-red-500">*</span>
+              B1 Consumption
             </label>
             <input
               type="number"
               name="b1_consumption"
               value={formData.b1_consumption}
               onChange={handleChange}
-              required
               className="w-full px-3 py-2 border border-gray-300 rounded-lg"
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              B2 Consumption <span className="text-red-500">*</span>
+              B2 Consumption
             </label>
             <input
               type="number"
               name="b2_consumption"
               value={formData.b2_consumption}
               onChange={handleChange}
-              required
               className="w-full px-3 py-2 border border-gray-300 rounded-lg"
             />
           </div>
@@ -430,42 +514,46 @@ const AddFlockDetail = () => {
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Image Mortality
-            </label>
-            {!capturedImage ? (
-              <button
-                type="button"
-                onClick={openCamera}
-                className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-              >
-                Take Photo
-              </button>
-            ) : (
-              <div className="relative">
-                <img
-                  src={capturedImage}
-                  alt="Captured"
-                  className="w-full h-auto rounded-lg"
-                />
-                <button
-                  type="button"
-                  onClick={removePhoto}
-                  className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full hover:bg-red-600 transition"
-                >
-                  Remove
-                </button>
-              </div>
-            )}
-          </div>
+          {renderImageInput('image_mortality', 'Mortality Image')}
+          {renderImageInput('feed_image', 'Feed Stock Image')}
+          {renderImageInput('field_image', 'Field Image')}
 
           <button
             type="submit"
-            className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-            disabled={!isLocationValid}
+            className={`w-full py-2 px-4 ${
+              isSubmitting
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-[#77B94C] hover:bg-[#ff140a]'
+            } text-white rounded-lg transition`}
+            disabled={!isLocationValid || isSubmitting}
           >
-            Submit
+            {isSubmitting ? (
+              <span className="flex items-center justify-center">
+                <svg
+                  className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+                Submitting...
+              </span>
+            ) : (
+              'Submit'
+            )}
           </button>
         </form>
       )}

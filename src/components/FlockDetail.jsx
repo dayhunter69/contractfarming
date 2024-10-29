@@ -319,54 +319,62 @@ const FlockDetail = () => {
           </Dropdown>
         </div>
       </div>
-
       <div className="overflow-x-auto table-container">
-        <table className="min-w-full bg-white border-collapse">
-          <thead>
-            <tr>
-              {columns
-                .filter((col) => visibleColumns.includes(col.id))
-                .map((column) => (
-                  <th
-                    key={column.id}
-                    className="bg-black text-white px-6 py-4 text-left text-xs font-medium uppercase tracking-wider cursor-pointer"
-                    onClick={handleSort(column.id)}
-                  >
-                    {column.label}
-                    {orderBy === column.id && (
-                      <span className="ml-1">
-                        {order === 'asc' ? '▲' : '▼'}
-                      </span>
-                    )}
-                  </th>
-                ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filteredSortedFlockDetails.map((detail, index) => (
-              <tr
-                key={detail.id}
-                className={`cursor-pointer ${
-                  index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                } hover:bg-gray-100 transition`}
-                onClick={() => handleRowClick(detail)}
-              >
+        {filteredSortedFlockDetails.length > 0 ? (
+          <table className="min-w-full bg-white border-collapse">
+            <thead>
+              <tr>
                 {columns
                   .filter((col) => visibleColumns.includes(col.id))
                   .map((column) => (
-                    <td
+                    <th
                       key={column.id}
-                      className={`px-6 whitespace-nowrap text-sm font-medium text-gray-900 border-b border-gray-200 ${densityClasses[density]}`}
+                      className="bg-black text-white px-6 py-4 text-left text-xs font-medium uppercase tracking-wider cursor-pointer"
+                      onClick={handleSort(column.id)}
                     >
-                      {column.id === 'english_date'
-                        ? moment(detail[column.id]).format('YYYY-MM-DD')
-                        : detail[column.id]}
-                    </td>
+                      {column.label}
+                      {orderBy === column.id && (
+                        <span className="ml-1">
+                          {order === 'asc' ? '▲' : '▼'}
+                        </span>
+                      )}
+                    </th>
                   ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filteredSortedFlockDetails.map((detail, index) => (
+                <tr
+                  key={detail.id}
+                  className={`cursor-pointer ${
+                    index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                  } hover:bg-gray-100 transition`}
+                  onClick={() => handleRowClick(detail)}
+                >
+                  {columns
+                    .filter((col) => visibleColumns.includes(col.id))
+                    .map((column) => (
+                      <td
+                        key={column.id}
+                        className={`px-6 whitespace-nowrap text-sm font-medium text-gray-900 border-b border-gray-200 ${densityClasses[density]}`}
+                      >
+                        {column.id === 'english_date'
+                          ? moment(detail[column.id]).format('YYYY-MM-DD')
+                          : detail[column.id]}
+                      </td>
+                    ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <div className="flex flex-col items-center justify-center min-h-[200px] bg-gray-50 rounded-lg border border-gray-200">
+            <p className="text-gray-500 text-lg">No data available</p>
+            <p className="text-gray-400 text-sm mt-2">
+              Click the 'Daily Entry' button to add new flock details
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

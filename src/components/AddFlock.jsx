@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { Loader2 } from 'lucide-react';
 
 const AddFlock = () => {
   const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
     assigned_to: '',
@@ -16,6 +18,7 @@ const AddFlock = () => {
     english_date: new Date().toISOString().split('T')[0],
     quantity: 0,
     address: '',
+    corporative_name: '',
   });
 
   useEffect(() => {
@@ -48,6 +51,11 @@ const AddFlock = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Prevent multiple submissions
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
     const accessToken = localStorage.getItem('accessToken');
 
     const formDataToSend = new FormData();
@@ -57,8 +65,6 @@ const AddFlock = () => {
     if (selectedFile) {
       formDataToSend.append('image', selectedFile);
     }
-
-    console.log('FormData to be sent:', Object.fromEntries(formDataToSend));
 
     try {
       const response = await axios.post(
@@ -72,7 +78,6 @@ const AddFlock = () => {
         }
       );
 
-      console.log('Flock created:', response.data);
       alert(`Flock created successfully. Flock ID: ${response.data.flockId}`);
       navigate('/myflock');
     } catch (error) {
@@ -81,6 +86,8 @@ const AddFlock = () => {
         error.response ? error.response.data : error.message
       );
       alert('Failed to create flock. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -100,7 +107,8 @@ const AddFlock = () => {
             value={formData.assigned_to}
             onChange={handleChange}
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            disabled={isSubmitting}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-100"
           >
             <option value="">Select a user</option>
             {users.map((user) => (
@@ -110,6 +118,7 @@ const AddFlock = () => {
             ))}
           </select>
         </div>
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Location <span className="text-red-500">*</span>
@@ -120,10 +129,12 @@ const AddFlock = () => {
             value={formData.Location}
             onChange={handleChange}
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            disabled={isSubmitting}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-100"
             placeholder="Longitude & Latitude Coordinates"
           />
         </div>
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Address <span className="text-red-500">*</span>
@@ -134,10 +145,12 @@ const AddFlock = () => {
             value={formData.address}
             onChange={handleChange}
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            disabled={isSubmitting}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-100"
             placeholder="Enter Address"
           />
         </div>
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Caretaker Farmer <span className="text-red-500">*</span>
@@ -148,10 +161,12 @@ const AddFlock = () => {
             value={formData.caretaker_farmer}
             onChange={handleChange}
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            disabled={isSubmitting}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-100"
             placeholder="Enter caretaker farmer name"
           />
         </div>
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Flock ID <span className="text-red-500">*</span>
@@ -162,10 +177,12 @@ const AddFlock = () => {
             value={formData.flock_id}
             onChange={handleChange}
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            disabled={isSubmitting}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-100"
             placeholder="Enter flock ID"
           />
         </div>
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Nepali Date <span className="text-red-500">*</span>
@@ -176,10 +193,12 @@ const AddFlock = () => {
             value={formData.nepali_date}
             onChange={handleChange}
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            disabled={isSubmitting}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-100"
             placeholder="YYYY-MM-DD"
           />
         </div>
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             English Date <span className="text-red-500">*</span>
@@ -190,9 +209,11 @@ const AddFlock = () => {
             value={formData.english_date}
             onChange={handleChange}
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            disabled={isSubmitting}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-100"
           />
         </div>
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Quantity <span className="text-red-500">*</span>
@@ -203,9 +224,25 @@ const AddFlock = () => {
             value={formData.quantity}
             onChange={handleChange}
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            disabled={isSubmitting}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-100"
           />
         </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Corporative Name
+          </label>
+          <input
+            type="text"
+            name="corporative_name"
+            value={formData.corporative_name}
+            onChange={handleChange}
+            disabled={isSubmitting}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-100"
+          />
+        </div>
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Image Upload
@@ -213,15 +250,25 @@ const AddFlock = () => {
           <input
             type="file"
             onChange={handleFileChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            disabled={isSubmitting}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-100"
           />
         </div>
+
         <div>
           <button
             type="submit"
-            className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+            disabled={isSubmitting}
+            className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:bg-blue-400 disabled:cursor-not-allowed flex items-center justify-center"
           >
-            Submit
+            {isSubmitting ? (
+              <>
+                <Loader2 className="animate-spin mr-2 h-5 w-5" />
+                Submitting...
+              </>
+            ) : (
+              'Submit'
+            )}
           </button>
         </div>
       </form>
