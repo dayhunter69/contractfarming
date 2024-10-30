@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { Toaster, toast } from 'sonner';
 
 const AddUser = () => {
   const [formData, setFormData] = useState({
@@ -50,14 +51,22 @@ const AddUser = () => {
         }
       );
       console.log('User created:', response.data);
-      alert(`User created successfully: ${formData.username}`);
-      navigate('/users');
+      toast.success(`User ${formData.username} created successfully`, {
+        style: { background: '#10B981', color: 'white' },
+      });
+
+      // Delay navigation slightly to allow toast to be seen
+      setTimeout(() => {
+        navigate('/users');
+      }, 1000);
     } catch (error) {
       console.error('Error creating user:', error);
       const errorMessage =
         error.response?.data?.message ||
         'Failed to create user. Please try again.';
-      alert(errorMessage);
+      toast.error(errorMessage, {
+        style: { background: '#EF4444', color: 'white' },
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -65,6 +74,7 @@ const AddUser = () => {
 
   return (
     <div className="p-4 max-w-md mx-auto">
+      <Toaster position="bottom-center" richColors />
       <h2 className="text-xl font-bold mb-4">Add User</h2>
       <form
         onSubmit={handleSubmit}

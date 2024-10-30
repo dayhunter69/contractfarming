@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { Camera } from 'react-camera-pro';
-
+import { toast } from 'sonner';
 const AddFlockDetail = () => {
   const navigate = useNavigate();
   const { flockId } = useParams();
@@ -150,7 +150,10 @@ const AddFlockDetail = () => {
     const missingFields = requiredFields.filter((field) => !formData[field]);
 
     if (missingFields.length > 0) {
-      alert(`Missing required fields: ${missingFields.join(', ')}`);
+      toast.error(`Missing required fields: ${missingFields.join(', ')}`, {
+        position: 'bottom-center',
+        richColors: true,
+      });
       return;
     }
 
@@ -182,9 +185,12 @@ const AddFlockDetail = () => {
         }
       );
 
-      console.log('Form submitted successfully:', response.data);
-      alert(
-        `Flock detail created successfully. Flock Detail ID: ${response.data.flockDetailId}`
+      toast.success(
+        `Flock detail created successfully. Age: ${response.data.age_days}`,
+        {
+          position: 'bottom-center',
+          richColors: true,
+        }
       );
       navigate(`/myflock/${flockId}`);
     } catch (error) {
@@ -198,8 +204,12 @@ const AddFlockDetail = () => {
       } else {
         console.error('Error message:', error.message);
       }
-      alert(
-        'Failed to create flock detail. Please check your connection and try again.'
+      toast.error(
+        'Failed to create flock detail. Please check your connection and try again.',
+        {
+          position: 'bottom-center',
+          richColors: true,
+        }
       );
     } finally {
       setIsSubmitting(false);
@@ -321,7 +331,7 @@ const AddFlockDetail = () => {
           {/* ... (other form fields) */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Location <span className="text-red-500">*</span>
+              Location
             </label>
             <input
               type="text"

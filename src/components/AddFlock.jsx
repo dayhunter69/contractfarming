@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Loader2 } from 'lucide-react';
+import { Toaster, toast } from 'sonner';
 
 const AddFlock = () => {
   const navigate = useNavigate();
@@ -34,6 +35,9 @@ const AddFlock = () => {
         setUsers(response.data);
       } catch (error) {
         console.error('Error fetching users:', error);
+        toast.error('Failed to fetch users list', {
+          style: { background: '#EF4444', color: 'white' },
+        });
       }
     };
 
@@ -46,7 +50,18 @@ const AddFlock = () => {
   };
 
   const handleFileChange = (e) => {
-    setSelectedFile(e.target.files[0]);
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        // 5MB limit
+        toast.error('File size should not exceed 10MB', {
+          style: { background: '#EF4444', color: 'white' },
+        });
+        e.target.value = '';
+        return;
+      }
+      setSelectedFile(file);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -78,14 +93,25 @@ const AddFlock = () => {
         }
       );
 
-      alert(`Flock created successfully. Flock ID: ${response.data.flockId}`);
-      navigate('/myflock');
+      toast.success(
+        `Flock created successfully. Flock ID: ${response.data.flockId}`,
+        {
+          style: { background: '#10B981', color: 'white' },
+        }
+      );
+
+      // Delay navigation slightly to allow toast to be seen
+      setTimeout(() => {
+        navigate('/myflock');
+      }, 1000);
     } catch (error) {
       console.error(
         'Error creating flock:',
         error.response ? error.response.data : error.message
       );
-      alert('Failed to create flock. Please try again.');
+      toast.error('Failed to create flock. Please try again.', {
+        style: { background: '#EF4444', color: 'white' },
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -93,6 +119,7 @@ const AddFlock = () => {
 
   return (
     <div className="p-4 max-w-lg mx-auto">
+      <Toaster position="bottom-center" richColors />
       <h2 className="text-2xl font-bold mb-4">Create New Flock</h2>
       <form
         onSubmit={handleSubmit}
@@ -252,6 +279,7 @@ const AddFlock = () => {
             onChange={handleFileChange}
             disabled={isSubmitting}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-100"
+            accept="image/*"
           />
         </div>
 

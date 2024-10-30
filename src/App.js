@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'sonner';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import Login from './pages/Login';
@@ -53,6 +54,7 @@ function App() {
   return (
     <div className="App">
       <BrowserRouter>
+        <Toaster richColors position="bottom-center" />
         <Routes>
           <Route path="/" element={<Login />} />
           <Route element={<ProtectedRoute />}>
