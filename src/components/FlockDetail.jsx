@@ -200,8 +200,7 @@ const FlockDetail = () => {
   };
 
   const columns = [
-    { id: 'nepali_date', label: 'Nepali Date' },
-    { id: 'english_date', label: 'English Date' },
+    { id: 'english_date', label: 'Date' },
     { id: 'age_days', label: 'Age (Days)' },
     { id: 'num_birds', label: 'Number of Birds' },
     { id: 'mortality_birds', label: 'Mortality' },

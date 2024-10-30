@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+
 const AddUser = () => {
   const [formData, setFormData] = useState({
     username: '',
     password: '',
     role: '2', // Default role to Line Supervisor
   });
-  const [showPassword, setShowPassword] = useState(false); // Toggle for showing password
+  const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
@@ -25,8 +28,16 @@ const AddUser = () => {
   };
 
   const handleSubmit = async (e) => {
-    const accessToken = localStorage.getItem('accessToken');
     e.preventDefault();
+
+    // Prevent multiple submissions
+    if (isSubmitting) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    const accessToken = localStorage.getItem('accessToken');
+
     try {
       const response = await axios.post(
         'http://localhost:8800/auth/signup',
@@ -43,7 +54,12 @@ const AddUser = () => {
       navigate('/users');
     } catch (error) {
       console.error('Error creating user:', error);
-      alert('Failed to create user. Please try again.');
+      const errorMessage =
+        error.response?.data?.message ||
+        'Failed to create user. Please try again.';
+      alert(errorMessage);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -64,7 +80,8 @@ const AddUser = () => {
             value={formData.username}
             onChange={handleChange}
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            disabled={isSubmitting}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-100 disabled:cursor-not-allowed"
           />
         </div>
 
@@ -79,11 +96,16 @@ const AddUser = () => {
               value={formData.password}
               onChange={handleChange}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              disabled={isSubmitting}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-100 disabled:cursor-not-allowed"
             />
             <div
-              className="absolute right-3 top-0 bottom-0 flex items-center cursor-pointer"
-              onClick={togglePasswordVisibility}
+              className={`absolute right-3 top-0 bottom-0 flex items-center ${
+                isSubmitting
+                  ? 'cursor-not-allowed text-gray-400'
+                  : 'cursor-pointer'
+              }`}
+              onClick={!isSubmitting ? togglePasswordVisibility : undefined}
             >
               {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
             </div>
@@ -98,7 +120,8 @@ const AddUser = () => {
             name="role"
             value={formData.role}
             onChange={handleRoleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            disabled={isSubmitting}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-100 disabled:cursor-not-allowed"
             required
           >
             <option value="1">Admin</option>
@@ -109,9 +132,21 @@ const AddUser = () => {
         <div>
           <button
             type="submit"
-            className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+            disabled={isSubmitting}
+            className={`w-full py-2 px-4 ${
+              isSubmitting
+                ? 'bg-blue-400 cursor-not-allowed'
+                : 'bg-blue-600 hover:bg-blue-700'
+            } text-white rounded-lg transition flex items-center justify-center`}
           >
-            Create User
+            {isSubmitting ? (
+              <>
+                <Loader2 className="animate-spin mr-2" size={20} />
+                Creating User...
+              </>
+            ) : (
+              'Create User'
+            )}
           </button>
         </div>
       </form>
