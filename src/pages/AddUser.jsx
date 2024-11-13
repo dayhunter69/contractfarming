@@ -41,7 +41,7 @@ const AddUser = () => {
 
     try {
       const response = await axios.post(
-        'http://localhost:8800/auth/signup',
+        'https://cfbeta.safnepal.com/auth/signup',
         formData,
         {
           headers: {

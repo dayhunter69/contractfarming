@@ -56,7 +56,7 @@ const AddFlockDetail = () => {
     try {
       const token = localStorage.getItem('accessToken');
       const response = await axios.get(
-        `http://localhost:8800/flock/${flockId}`,
+        `https://cfbeta.safnepal.com/flock/${flockId}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -175,7 +175,7 @@ const AddFlockDetail = () => {
 
     try {
       const response = await axios.post(
-        'http://localhost:8800/flock-details',
+        'https://cfbeta.safnepal.com/flock-details',
         formDataToSend,
         {
           headers: {

@@ -26,7 +26,7 @@ const AddFlock = () => {
     const fetchUsers = async () => {
       const accessToken = localStorage.getItem('accessToken');
       try {
-        const response = await axios.get('http://localhost:8800/users', {
+        const response = await axios.get('https://cfbeta.safnepal.com/users', {
           headers: {
             Authorization: `Bearer ${accessToken}`,
             'Content-Type': 'application/json',
@@ -83,7 +83,7 @@ const AddFlock = () => {
 
     try {
       const response = await axios.post(
-        'http://localhost:8800/flock',
+        'https://cfbeta.safnepal.com/flock',
         formDataToSend,
         {
           headers: {

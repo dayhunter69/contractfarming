@@ -12,7 +12,7 @@ const UserList = () => {
     const fetchUsers = async () => {
       try {
         const token = localStorage.getItem('accessToken');
-        const response = await axios.get('http://localhost:8800/users', {
+        const response = await axios.get('https://cfbeta.safnepal.com/users', {
           headers: { Authorization: `Bearer ${token}` },
         });
         setUsers(response.data);

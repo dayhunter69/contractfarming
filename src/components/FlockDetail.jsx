@@ -80,7 +80,7 @@ const FlockDetail = () => {
     const fetchFlockDetails = async () => {
       try {
         const response = await axios.get(
-          `http://localhost:8800/flock-details/${flockId}`,
+          `https://cfbeta.safnepal.com/flock-details/${flockId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,

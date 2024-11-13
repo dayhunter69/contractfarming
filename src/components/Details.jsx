@@ -31,7 +31,7 @@ const Details = () => {
     const fetchFlock = async () => {
       try {
         const response = await axios.get(
-          `http://localhost:8800/flock/${flockId}`,
+          `https://cfbeta.safnepal.com/flock/${flockId}`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -58,7 +58,7 @@ const Details = () => {
 
   const ImageWithPopup = ({ src, alt, title }) => (
     <img
-      src={`http://localhost:8800/uploads/${src.split('/').pop()}`}
+      src={`https://cfbeta.safnepal.com/uploads/${src.split('/').pop()}`}
       alt={alt}
       className="rounded-lg shadow-md cursor-pointer hover:opacity-90 transition-opacity"
       height={200}
@@ -97,7 +97,7 @@ const Details = () => {
           </div>
           <div className="overflow-auto max-h-[85vh]">
             <img
-              src={`http://localhost:8800/uploads/${selectedImage
+              src={`https://cfbeta.safnepal.com/uploads/${selectedImage
                 .split('/')
                 .pop()}`}
               alt={imageTitle}

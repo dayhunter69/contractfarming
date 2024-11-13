@@ -23,10 +23,11 @@ const Login = () => {
     };
 
     try {
-      const response = await fetch('http://localhost:8800/auth/login', {
+      const response = await fetch('https://cfbeta.safnepal.com/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          Accept: 'application/json',
         },
         body: JSON.stringify(payload),
       });
@@ -49,6 +50,8 @@ const Login = () => {
           navigate('/dashboard');
         }, 1000);
       } else {
+        const error = await response.json();
+        console.error('Error:', error);
         toast.error('Invalid username or password', {
           style: { background: '#EF4444', color: 'white' },
         });
