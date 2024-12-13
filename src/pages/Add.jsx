@@ -15,7 +15,7 @@ const Add = () => {
   const handleClick = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('https://cfbeta.safnepal.com/books', book);
+      await axios.post('http://localhost:8800/books', book);
       navigate('/');
     } catch (error) {
       console.log(error);

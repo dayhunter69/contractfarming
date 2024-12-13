@@ -1,14 +1,17 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useParams, useLocation } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { X } from 'lucide-react';
 import axios from 'axios';
 import moment from 'moment';
 
 const Details = () => {
   const { flockId } = useParams();
-  const location = useLocation();
+  const { flockDetailId } = useParams();
+  console.log('Flock id = ' + flockId);
+  console.log('Flock detail id = ' + flockDetailId);
+
   const [flock, setFlock] = useState(null);
-  const flockDetail = location.state?.flockDetail;
+  const [flockDetail, setFlockDetail] = useState(null);
   const token = localStorage.getItem('accessToken');
   const [selectedImage, setSelectedImage] = useState(null);
   const [imageTitle, setImageTitle] = useState('');
@@ -31,18 +34,35 @@ const Details = () => {
     const fetchFlock = async () => {
       try {
         const response = await axios.get(
-          `https://cfbeta.safnepal.com/flock/${flockId}`,
+          `http://localhost:8800/flock/${flockId}`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
         );
-        setFlock(response.data[0]);
+        setFlock(response.data);
+        console.log('Flock data: ' + flockDetail);
+      } catch (error) {
+        console.error('Error fetching flock detail data:', error);
+      }
+    };
+    const fetchFlockDetail = async () => {
+      try {
+        const response = await axios.get(
+          `http://localhost:8800/flock-details/singledetail/${flockDetailId}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        setFlockDetail(response.data[0]);
+        console.log('Flock Detail data: ' + flock);
       } catch (error) {
         console.error('Error fetching flock data:', error);
       }
     };
 
     fetchFlock();
+    fetchFlockDetail();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [flockId, token]);
 
   if (!flock || !flockDetail) {
@@ -58,7 +78,7 @@ const Details = () => {
 
   const ImageWithPopup = ({ src, alt, title }) => (
     <img
-      src={`https://cfbeta.safnepal.com/uploads/${src.split('/').pop()}`}
+      src={`http://localhost:8800/uploads/${src.split('/').pop()}`}
       alt={alt}
       className="rounded-lg shadow-md cursor-pointer hover:opacity-90 transition-opacity"
       height={200}
@@ -97,7 +117,7 @@ const Details = () => {
           </div>
           <div className="overflow-auto max-h-[85vh]">
             <img
-              src={`https://cfbeta.safnepal.com/uploads/${selectedImage
+              src={`http://localhost:8800/uploads/${selectedImage
                 .split('/')
                 .pop()}`}
               alt={imageTitle}
@@ -110,43 +130,13 @@ const Details = () => {
   };
 
   return (
-    <div className="p-4 max-w-4xl mx-auto">
-      {/* Flock Summary section */}
-      <div className="bg-white shadow-md rounded-lg mb-6 overflow-hidden">
-        <div className="bg-gray-100 px-4 py-3 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-800">Flock Summary</h2>
-        </div>
-        <div className="p-4">
-          <DetailItem label="Flock ID" value={flock.flock_id} />
-          <DetailItem label="Caretaker" value={flock.caretaker_farmer} />
-          <DetailItem label="Quantity" value={flock.quantity} />
-          <DetailItem label="Address" value={flock.address} />
-          <DetailItem label="Location" value={flock.Location} />
-          <DetailItem label="Placement Nepali Date" value={flock.nepali_date} />
-          <DetailItem
-            label="Placement English Date"
-            value={moment(flock.english_date).format('YYYY-MM-DD')}
-          />
-          <DetailItem label="Assigned To" value={flock.assigned_to} />
-          <DetailItem label="Corporative Name" value={flock.corporative_name} />
-
-          {flock.image_location && (
-            <div className="mt-4 flex justify-between items-center">
-              <h3 className="text-lg font-medium text-gray-700">Flock Image</h3>
-              <ImageWithPopup
-                src={flock.image_location}
-                alt="Flock"
-                title="Flock Image"
-              />
-            </div>
-          )}
-        </div>
-      </div>
-
+    <div className="p-0 max-w-5xl mx-auto">
       {/* Flock Detail section */}
-      <div className="bg-white shadow-md rounded-lg overflow-hidden">
+      <div className="bg-white shadow-md rounded-lg overflow-hidden mt-2">
         <div className="bg-gray-100 px-4 py-3 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-800">Flock Detail</h2>
+          <h2 className="text-xl font-semibold text-gray-800">
+            Summary of daily Entry
+          </h2>
         </div>
         <div className="p-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -227,6 +217,37 @@ const Details = () => {
                 src={flockDetail.field_image}
                 alt="Field"
                 title="Field Image"
+              />
+            </div>
+          )}
+        </div>
+      </div>
+      {/* Flock Summary section */}
+      <div className="bg-white shadow-md rounded-lg mb-6 overflow-hidden mt-5">
+        <div className="bg-gray-100 px-4 py-3 border-b border-gray-200">
+          <h2 className="text-xl font-semibold text-gray-800">Flock Summary</h2>
+        </div>
+        <div className="p-4">
+          <DetailItem label="Flock ID" value={flock.flock_id} />
+          <DetailItem label="Caretaker" value={flock.caretaker_farmer} />
+          <DetailItem label="Quantity" value={flock.quantity} />
+          <DetailItem label="Address" value={flock.address} />
+          <DetailItem label="Location" value={flock.Location} />
+          <DetailItem label="Placement Nepali Date" value={flock.nepali_date} />
+          <DetailItem
+            label="Placement English Date"
+            value={moment(flock.english_date).format('YYYY-MM-DD')}
+          />
+          <DetailItem label="Assigned To" value={flock.username_assigned_to} />
+          <DetailItem label="Corporative Name" value={flock.corporative_name} />
+
+          {flock.image_location && (
+            <div className="mt-4 flex justify-between items-center">
+              <h3 className="text-lg font-medium text-gray-700">Flock Image</h3>
+              <ImageWithPopup
+                src={flock.image_location}
+                alt="Flock"
+                title="Flock Image"
               />
             </div>
           )}

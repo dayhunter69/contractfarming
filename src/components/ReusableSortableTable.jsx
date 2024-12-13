@@ -1,7 +1,50 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Download, Printer, ChevronDown, Filter } from 'lucide-react';
+import { Download, Printer, ChevronDown, Search } from 'lucide-react';
 
+const TableSkeleton = ({ columns, rowCount = 5 }) => {
+  return (
+    <div className="animate-pulse">
+      {/* Header Skeleton */}
+      <div className="grid grid-cols-1 gap-4 mb-4">
+        <div className="h-12 bg-gray-200 rounded"></div>
+      </div>
+
+      {/* Table Header Skeleton */}
+      <div className="grid grid-flow-col gap-4 mb-4">
+        {Array(columns)
+          .fill(0)
+          .map((_, idx) => (
+            <div
+              key={`header-skeleton-${idx}`}
+              className="h-10 bg-gray-200 rounded"
+            ></div>
+          ))}
+      </div>
+
+      {/* Table Rows Skeleton */}
+      {Array(rowCount)
+        .fill(0)
+        .map((_, rowIdx) => (
+          <div
+            key={`row-skeleton-${rowIdx}`}
+            className="grid grid-flow-col gap-4 mb-20"
+          >
+            {Array(columns)
+              .fill(0)
+              .map((_, colIdx) => (
+                <div
+                  key={`cell-skeleton-${rowIdx}-${colIdx}`}
+                  className="h-1 bg-gray-200 rounded relative overflow-hidden"
+                >
+                  <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200"></div>
+                </div>
+              ))}
+          </div>
+        ))}
+    </div>
+  );
+};
 const Dropdown = ({
   label,
   icon: Icon,
@@ -23,7 +66,7 @@ const Dropdown = ({
       <div>
         <button
           type="button"
-          className={`inline-flex items-center justify-center w-full rounded-md px-4 py-2 bg-gray-900 text-white text-sm font-medium hover:bg-gray-700 focus:outline-none ${
+          className={`inline-flex items-center justify-center w-full rounded-md px-4 py-2 bg-gray-900 text-white text-sm font-medium hover:bg-gray-700 focus:outline-none select-none ${
             isOpen
               ? 'ring-2 ring-offset-2 ring-offset-gray-100 ring-indigo-500'
               : ''
@@ -43,7 +86,7 @@ const Dropdown = ({
 
       {isOpen && (
         <div
-          className="origin-top-right absolute ml-1 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10"
+          className="origin-top-right absolute ml-1 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-20"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="py-1">{children}</div>
@@ -59,16 +102,21 @@ const ReusableSortableTable = ({
   defaultSortColumn = '',
   navigateOnClick,
   getNavigationPath,
+  loading = true, // New loading prop
 }) => {
   const [orderBy, setOrderBy] = useState(defaultSortColumn);
   const [order, setOrder] = useState('asc');
   const [visibleColumns, setVisibleColumns] = useState(
     columns.map((col) => col.id)
   );
-  const [filterColumn, setFilterColumn] = useState('');
-  const [filterValue, setFilterValue] = useState('');
+  // const [filterColumn, setFilterColumn] = useState('');
+  // const [filterValue, setFilterValue] = useState('');
   const [density, setDensity] = useState('standard');
   const [activeDropdown, setActiveDropdown] = useState(null);
+
+  // New state for global search
+  const [globalSearchValue, setGlobalSearchValue] = useState('');
+
   const navigate = useNavigate();
 
   const handleSort = (property) => () => {
@@ -80,7 +128,12 @@ const ReusableSortableTable = ({
   const handleRowClick = (row) => {
     if (navigateOnClick && getNavigationPath) {
       const path = getNavigationPath(row);
-      navigate(path);
+      navigate(path, {
+        state: {
+          flock_id: row.flock_id,
+          username_assigned_to: row.username_assigned_to,
+        },
+      });
     }
   };
 
@@ -92,13 +145,17 @@ const ReusableSortableTable = ({
     );
   };
 
-  const handleFilterChange = (e) => {
-    setFilterValue(e.target.value);
-  };
+  // const handleFilterChange = (e) => {
+  //   setFilterValue(e.target.value);
+  // };
 
   const handleDensityChange = (newDensity) => {
     setDensity(newDensity);
     setActiveDropdown(null);
+  };
+
+  const handleGlobalSearchChange = (e) => {
+    setGlobalSearchValue(e.target.value);
   };
 
   const exportCSV = () => {
@@ -143,14 +200,26 @@ const ReusableSortableTable = ({
   const filteredSortedRows = useMemo(() => {
     let result = rows;
 
-    if (filterColumn && filterValue) {
+    // Global search functionality
+    if (globalSearchValue) {
+      const searchTerm = globalSearchValue.toLowerCase();
       result = result.filter((row) =>
-        String(row[filterColumn])
-          .toLowerCase()
-          .includes(filterValue.toLowerCase())
+        columns.some((col) =>
+          String(row[col.id]).toLowerCase().includes(searchTerm)
+        )
       );
     }
 
+    // Column-specific filter
+    // if (filterColumn && filterValue) {
+    //   result = result.filter((row) =>
+    //     String(row[filterColumn])
+    //       .toLowerCase()
+    //       .includes(filterValue.toLowerCase())
+    //   );
+    // }
+
+    // Sorting
     if (orderBy) {
       result.sort((a, b) => {
         const aValue = a[orderBy];
@@ -167,18 +236,46 @@ const ReusableSortableTable = ({
     }
 
     return result;
-  }, [rows, filterColumn, filterValue, orderBy, order]);
+  }, [rows, globalSearchValue, orderBy, order, columns]);
 
   const densityClasses = {
-    compact: 'py-2',
-    standard: 'py-3',
-    comfortable: 'py-4',
+    compact: 'py-1/2',
+    standard: 'py-1',
+    comfortable: 'py-2',
   };
 
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <div className="flex flex-wrap gap-2 mb-4">
+          {/* Skeleton buttons */}
+          <div className="flex gap-2">
+            {['COLUMNS', 'DENSITY', 'EXPORT'].map((label) => (
+              <div
+                key={label}
+                className="h-10 w-24 bg-gray-200 rounded animate-pulse"
+              ></div>
+            ))}
+          </div>
+          {/* Skeleton search */}
+          <div className="w-48 h-10 bg-gray-200 rounded animate-pulse ml-auto"></div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <TableSkeleton
+            columns={
+              columns.filter((col) => visibleColumns.includes(col.id)).length
+            }
+            rowCount={7}
+          />
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap justify-between items-center bg-gray-900 text-white p-2 rounded-md">
-        <div className="flex flex-wrap gap-2 mb-2 sm:mb-0">
+        <div className="flex flex-wrap gap-2 mb-2 sm:mb-0 items-center">
           <Dropdown
             label="COLUMNS"
             isOpen={activeDropdown === 'COLUMNS'}
@@ -187,7 +284,7 @@ const ReusableSortableTable = ({
           >
             {columns.map((col) => (
               <label
-                key={col.id}
+                key={`column-toggle-${col.id}`} // Add a unique key here
                 className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 cursor-pointer"
               >
                 <input
@@ -201,7 +298,7 @@ const ReusableSortableTable = ({
             ))}
           </Dropdown>
 
-          <Dropdown
+          {/* <Dropdown
             label="FILTERS"
             icon={Filter}
             isOpen={activeDropdown === 'FILTERS'}
@@ -216,7 +313,9 @@ const ReusableSortableTable = ({
               >
                 <option value="">Select column to filter</option>
                 {columns.map((col) => (
-                  <option key={col.id} value={col.id}>
+                  <option key={`filter-${col.id}`} value={col.id}>
+                    {' '}
+                    // Add a unique key here
                     {col.label}
                   </option>
                 ))}
@@ -229,7 +328,7 @@ const ReusableSortableTable = ({
                 className="w-full border rounded px-2 py-1 text-gray-700"
               />
             </div>
-          </Dropdown>
+          </Dropdown> */}
 
           <Dropdown
             label="DENSITY"
@@ -273,27 +372,43 @@ const ReusableSortableTable = ({
               <Printer size={16} className="mr-2" /> Print
             </button>
           </Dropdown>
+
+          {/* Global Search Input */}
+          <div className="relative flex-grow max-w-xs ml-auto">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-5 w-5 text-gray-400" aria-hidden="true" />
+            </div>
+            <input
+              type="text"
+              placeholder="Search all columns..."
+              value={globalSearchValue}
+              onChange={handleGlobalSearchChange}
+              className="block w-full pl-10 pr-3 py-2 rounded-md bg-gray-800 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
         </div>
       </div>
 
-      <div className="overflow-x-auto table-container">
+      <div className="overflow-x-auto relative h-[82vh]">
         <table className="min-w-full bg-white border-collapse">
-          <thead>
+          <thead className="sticky top-0 z-10 bg-gray-900">
             <tr>
               {columns
                 .filter((col) => visibleColumns.includes(col.id))
                 .map((column) => (
                   <th
-                    key={column.id}
-                    className="bg-gray-900 text-white px-4 py-2 text-left text-xs font-medium uppercase tracking-wider cursor-pointer"
+                    key={`header-${column.id}`}
+                    className="bg-gray-900 text-white px-4 py-2 text-center text-xs font-medium uppercase tracking-wider cursor-pointer select-none border-x border-gray-700 relative group hover:bg-gray-800 transition-colors"
                     onClick={handleSort(column.id)}
                   >
-                    {column.label}
-                    {orderBy === column.id && (
-                      <span className="ml-1">
-                        {order === 'asc' ? '▲' : '▼'}
-                      </span>
-                    )}
+                    <div className="flex items-center justify-center gap-1">
+                      {column.label}
+                      {orderBy === column.id && (
+                        <span className="text-gray-300">
+                          {order === 'asc' ? '▲' : '▼'}
+                        </span>
+                      )}
+                    </div>
                   </th>
                 ))}
             </tr>
@@ -301,18 +416,18 @@ const ReusableSortableTable = ({
           <tbody>
             {filteredSortedRows.map((row, index) => (
               <tr
-                key={row.id || index}
-                className={`cursor-pointer ${
-                  index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                } hover:bg-gray-100 transition`}
+                key={row.id || `row-${index}`}
+                className={
+                  'cursor-pointer bg-gray-50 hover:bg-green-100 transition'
+                }
                 onClick={() => handleRowClick(row)}
               >
                 {columns
                   .filter((col) => visibleColumns.includes(col.id))
                   .map((column) => (
                     <td
-                      key={column.id}
-                      className={`px-4 whitespace-nowrap text-sm font-medium text-gray-900 border-b border-gray-200 ${densityClasses[density]}`}
+                      key={`cell-${row.id || index}-${column.id}`}
+                      className={`px-1 whitespace-nowrap text-sm font-medium text-gray-900 border-b border-gray-200 ${densityClasses[density]}`}
                     >
                       {column.render
                         ? column.render(row[column.id], row)

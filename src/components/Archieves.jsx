@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import moment from 'moment';
-import { X, Edit, CheckCircle } from 'lucide-react';
+import { X, Edit, CircleOff } from 'lucide-react';
 import { toast } from 'sonner';
 import ReusableSortableTable from './ReusableSortableTable';
 import DeleteConfirmDialog from './DeleteConfirmDialog';
@@ -24,7 +24,6 @@ const CustomDialog = ({ isOpen, onClose, children }) => {
     </div>
   );
 };
-
 // Only use when preview of image is also necessary in the row
 // const ImagePreview = ({ src, alt }) => {
 //   if (!src) {
@@ -80,17 +79,13 @@ const ImageModal = ({ isOpen, onClose, imageSrc }) => {
   );
 };
 
-const MyFlock = () => {
-  const [showAddFlockButton, setShowAddFlockButton] = useState(false);
+const Archieves = () => {
   const [flocks, setFlocks] = useState([]);
   const [selectedImage, setSelectedImage] = useState(null);
   const navigate = useNavigate();
   const token = localStorage.getItem('accessToken');
   const [loading, setLoading] = useState(true);
   useEffect(() => {
-    const userRole = localStorage.getItem('userRole');
-    setShowAddFlockButton(userRole === '0' || userRole === '1');
-
     const fetchFlocks = async () => {
       try {
         const response = await axios.get('http://localhost:8800/flock', {
@@ -99,11 +94,11 @@ const MyFlock = () => {
           },
         });
         setFlocks(response.data);
-        setLoading(false); // Set loading to false after data is loaded
+        setLoading(false);
       } catch (error) {
         console.error('Error fetching flocks:', error);
         toast.error('Failed to fetch flocks');
-        setLoading(false); // Also set loading to false if there's an error
+        setLoading(false);
       }
     };
 
@@ -125,17 +120,16 @@ const MyFlock = () => {
   const handleMarkAsComplete = async (flockId) => {
     try {
       // Dont touch this date otherwise a database error can occur
-      const currentTime = moment().format('YYYY-MM-DD HH:mm:ss');
       await axios.put(
         `http://localhost:8800/flock/${flockId}`,
-        { complete_date: currentTime },
+        { complete_date: null },
         {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         }
       );
-      toast.success('Flock has been moved to Archieve successfully');
+      toast.success('Flock moved to Running FLock successfully');
       // Optionally, refresh the flocks list or remove the completed flock
       setFlocks((prevFlocks) =>
         prevFlocks.filter((flock) => flock.id !== flockId)
@@ -152,8 +146,17 @@ const MyFlock = () => {
     //   render: (value) => moment(value).format('YYYY-MM-DD'),
     // },
     {
-      id: 'nepali_date',
+      id: 'english_date',
       label: 'Placement Date',
+      render: (value) => (
+        <div className="flex justify-center items-center h-full">
+          {moment(value).format('YYYY-MM-DD')}
+        </div>
+      ),
+    },
+    {
+      id: 'complete_date',
+      label: 'Completion Date',
       render: (value) => (
         <div className="flex justify-center items-center h-full">
           {moment(value).format('YYYY-MM-DD')}
@@ -228,13 +231,13 @@ const MyFlock = () => {
 
     {
       id: 'avg_weight',
-      label: 'Average Weight',
+      label: 'Avg Weight',
       render: (_, row) => {
         let avgWeight = '-';
         if (row.latest_flock_detail) {
           try {
             const details = JSON.parse(row.latest_flock_detail);
-            avgWeight = details.avg_weight ? `${details.avg_weight} gm` : '-';
+            avgWeight = details.avg_weight ? `${details.avg_weight} kg` : '-';
           } catch (error) {
             console.error(
               'Error parsing latest_flock_detail for average weight:',
@@ -390,13 +393,13 @@ const MyFlock = () => {
                   <Edit className="w-4 h-4" /> Edit
                 </button>
                 <button
-                  className="px-3 py-1 text-white bg-green-500 rounded hover:bg-green-600 flex items-center gap-1"
+                  className="px-3 py-1 text-white bg-orange-500 rounded hover:bg-yellow-600 flex items-center gap-1"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleMarkAsComplete(row.id);
                   }}
                 >
-                  <CheckCircle className="w-4 h-4" /> Complete
+                  <CircleOff className="w-4 h-4" /> InComplete
                 </button>
                 <div onClick={(e) => e.stopPropagation()}>
                   <DeleteConfirmDialog
@@ -409,30 +412,22 @@ const MyFlock = () => {
         ]
       : []),
   ];
-  const incompleteFlocks = flocks.filter(
-    (flock) => flock.complete_date === null
+  const completedFlocks = flocks.filter(
+    (flock) => flock.complete_date !== null
   );
 
   return (
     <div className="max-w-[99%] mx-auto">
       <div className="flex justify-between items-center mb-3">
-        <h2 className="text-3xl md:text-3xl font-bold text-[#77B94B] select-none md:ml-0 ml-8">
-          Running Flocks
+        <h2 className="text-3xl md:text-3xl font-bold text-[#77B94B] select-none">
+          Completed Flocks
         </h2>
-        {showAddFlockButton && (
-          <button
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200 shadow-sm hover:shadow-md select-none"
-            onClick={() => navigate('/addflock')}
-          >
-            Add Flock
-          </button>
-        )}
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <ReusableSortableTable
           columns={columns}
-          rows={incompleteFlocks}
+          rows={completedFlocks}
           defaultSortColumn="flock_id"
           navigateOnClick={true}
           getNavigationPath={(row) => `/myflock/${row.id}`}
@@ -449,4 +444,4 @@ const MyFlock = () => {
   );
 };
 
-export default MyFlock;
+export default Archieves;

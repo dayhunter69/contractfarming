@@ -80,7 +80,7 @@ const ImageModal = ({ isOpen, onClose, imageSrc }) => {
   );
 };
 
-const MyFlock = () => {
+const Accounts = () => {
   const [showAddFlockButton, setShowAddFlockButton] = useState(false);
   const [flocks, setFlocks] = useState([]);
   const [selectedImage, setSelectedImage] = useState(null);
@@ -228,13 +228,13 @@ const MyFlock = () => {
 
     {
       id: 'avg_weight',
-      label: 'Average Weight',
+      label: 'Avg Weight',
       render: (_, row) => {
         let avgWeight = '-';
         if (row.latest_flock_detail) {
           try {
             const details = JSON.parse(row.latest_flock_detail);
-            avgWeight = details.avg_weight ? `${details.avg_weight} gm` : '-';
+            avgWeight = details.avg_weight ? `${details.avg_weight} kg` : '-';
           } catch (error) {
             console.error(
               'Error parsing latest_flock_detail for average weight:',
@@ -416,8 +416,8 @@ const MyFlock = () => {
   return (
     <div className="max-w-[99%] mx-auto">
       <div className="flex justify-between items-center mb-3">
-        <h2 className="text-3xl md:text-3xl font-bold text-[#77B94B] select-none md:ml-0 ml-8">
-          Running Flocks
+        <h2 className="text-3xl md:text-3xl font-bold text-[#77B94B] select-none">
+          Account & Finance
         </h2>
         {showAddFlockButton && (
           <button
@@ -449,4 +449,4 @@ const MyFlock = () => {
   );
 };
 
-export default MyFlock;
+export default Accounts;

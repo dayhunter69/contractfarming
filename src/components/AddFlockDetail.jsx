@@ -30,6 +30,7 @@ const AddFlockDetail = () => {
     feed_image: null,
     field_image: null,
     flock_id: flockId || '',
+    avg_weight: 0,
   });
 
   const [isLocationValid, setIsLocationValid] = useState(false);
@@ -56,13 +57,14 @@ const AddFlockDetail = () => {
     try {
       const token = localStorage.getItem('accessToken');
       const response = await axios.get(
-        `https://cfbeta.safnepal.com/flock/${flockId}`,
+        `http://localhost:8800/flock/${flockId}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
 
-      const farmLocation = response.data[0].Location.split(',').map(Number);
+      const farmLocation = response.data.Location.split(',').map(Number);
+      console.log('farm location: ' + farmLocation);
       getCurrentLocation(farmLocation);
     } catch (error) {
       setErrorMessage('Failed to fetch farm location.');
@@ -78,26 +80,61 @@ const AddFlockDetail = () => {
             position.coords.latitude,
             position.coords.longitude,
           ];
+          console.log('User Location: ' + userLocation);
           const distance = calculateDistance(farmLocation, userLocation);
 
-          if (distance < 0.1) {
+          // Convert kilometers to meters for clarity
+          const distanceInMeters = distance * 1000;
+          const MAX_DISTANCE_METERS = 80000000;
+
+          console.log(`Distance: ${distanceInMeters} meters`);
+
+          if (distanceInMeters <= MAX_DISTANCE_METERS) {
             setIsLocationValid(true);
             setFormData((prevData) => ({
               ...prevData,
               location: `${userLocation[0]}, ${userLocation[1]}`,
             }));
           } else {
-            setErrorMessage('You are outside the farm location.');
+            setErrorMessage(
+              `You are ${Math.round(
+                distanceInMeters
+              )} meters away from the farm location. Please get closer.`
+            );
+            setIsLocationValid(false);
           }
           setIsFetchingLocation(false);
         },
         (error) => {
-          setErrorMessage('Failed to get your current location.');
+          let errorMsg = 'Failed to get your current location.';
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              errorMsg =
+                'Location access denied. Please enable location permissions.';
+              break;
+            case error.POSITION_UNAVAILABLE:
+              errorMsg = 'Location information is unavailable.';
+              break;
+            case error.TIMEOUT:
+              errorMsg = 'Location request timed out.';
+              break;
+            default:
+              errorMsg = 'An unknown error occurred while fetching location.';
+          }
+          setErrorMessage(errorMsg);
+          setIsLocationValid(false);
           setIsFetchingLocation(false);
+        },
+        {
+          // Optional: add more precise location settings
+          enableHighAccuracy: true,
+          timeout: 500000,
+          maximumAge: 0,
         }
       );
     } else {
       setErrorMessage('Geolocation is not supported by this browser.');
+      setIsLocationValid(false);
       setIsFetchingLocation(false);
     }
   };
@@ -159,6 +196,8 @@ const AddFlockDetail = () => {
 
     setIsSubmitting(true);
 
+    // Update formData with calculated FCR before submission
+
     const formDataToSend = new FormData();
     Object.keys(formData).forEach((key) => {
       if (key === 'english_date') {
@@ -175,7 +214,7 @@ const AddFlockDetail = () => {
 
     try {
       const response = await axios.post(
-        'https://cfbeta.safnepal.com/flock-details',
+        'http://localhost:8800/flock-details',
         formDataToSend,
         {
           headers: {
@@ -328,7 +367,6 @@ const AddFlockDetail = () => {
             />
           </div>
 
-          {/* ... (other form fields) */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Location
@@ -370,6 +408,19 @@ const AddFlockDetail = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg"
             />
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Average Weight Per Bird in gm
+            </label>
+            <input
+              type="number"
+              name="avg_weight"
+              value={formData.avg_weight}
+              onChange={handleChange}
+              required
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            />
+          </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -397,7 +448,7 @@ const AddFlockDetail = () => {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Net Weight Sold
+              Net Weight Sold in KGs
             </label>
             <input
               type="number"
@@ -422,7 +473,7 @@ const AddFlockDetail = () => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              BPS Stock
+              BPS Feed Received in KG
             </label>
             <input
               type="number"
@@ -435,7 +486,7 @@ const AddFlockDetail = () => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              B1 Stock
+              B1 Feed Received in KG
             </label>
             <input
               type="number"
@@ -448,7 +499,7 @@ const AddFlockDetail = () => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              B2 Stock
+              B2 Feed Received in KG
             </label>
             <input
               type="number"
@@ -461,7 +512,7 @@ const AddFlockDetail = () => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              BPS Consumption
+              BPS Consumption in KG
             </label>
             <input
               type="number"
@@ -474,7 +525,7 @@ const AddFlockDetail = () => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              B1 Consumption
+              B1 Consumption in KG
             </label>
             <input
               type="number"
@@ -487,7 +538,7 @@ const AddFlockDetail = () => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              B2 Consumption
+              B2 Consumption in KG
             </label>
             <input
               type="number"

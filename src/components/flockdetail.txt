@@ -1,439 +1,389 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { format } from 'date-fns';
-const AddFlockDetail = () => {
+import moment from 'moment';
+import { X, Edit, CircleOff } from 'lucide-react';
+import { toast } from 'sonner';
+import ReusableSortableTable from './ReusableSortableTable';
+import DeleteConfirmDialog from './DeleteConfirmDialog';
+
+const CustomDialog = ({ isOpen, onClose, children }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-lg max-w-[900px] w-full mx-4 relative"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {children}
+      </div>
+    </div>
+  );
+};
+// Only use when preview of image is also necessary in the row
+// const ImagePreview = ({ src, alt }) => {
+//   if (!src) {
+//     return (
+//       <div className="w-32 h-24 bg-gray-100 rounded-lg flex items-center justify-center">
+//         <span className="text-gray-400 text-sm">No Image</span>
+//       </div>
+//     );
+//   }
+
+//   const filename = src.split('/').pop();
+
+//   return (
+//     <div className="w-32 h-24 relative">
+//       <img
+//         src={`http://localhost:8800/uploads/${filename}`}
+//         alt={alt}
+//         className="w-full h-full object-cover rounded-lg shadow-sm"
+//         onError={(e) => {
+//           e.target.onerror = null;
+//           e.target.src = 'https://placehold.co/128x96?text=No+Image';
+//         }}
+//       />
+//     </div>
+//   );
+// };
+
+const ImageModal = ({ isOpen, onClose, imageSrc }) => {
+  if (!imageSrc) return null;
+
+  const filename = imageSrc.split('/').pop();
+
+  return (
+    <CustomDialog isOpen={isOpen} onClose={onClose}>
+      <div className="relative w-full max-h-[80vh] overflow-hidden">
+        <button
+          onClick={onClose}
+          className="absolute top-2 right-2 p-2 bg-black bg-opacity-50 rounded-full text-white hover:bg-opacity-70 transition-all duration-200 z-10"
+        >
+          <X className="w-6 h-6" />
+        </button>
+        <img
+          src={`http://localhost:8800/uploads/${filename}`}
+          alt="Enlarged view"
+          className="w-full h-full object-contain"
+          onError={(e) => {
+            e.target.onerror = null;
+            e.target.src = 'https://placehold.co/800x600?text=Image+Not+Found';
+          }}
+        />
+      </div>
+    </CustomDialog>
+  );
+};
+
+const Archieves = () => {
+  const [flocks, setFlocks] = useState([]);
+  const [selectedImage, setSelectedImage] = useState(null);
   const navigate = useNavigate();
-  const { flockId } = useParams();
-
-  const [formData, setFormData] = useState({
-    nepali_date: '',
-    english_date: new Date().toLocaleString('en-GB', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false,
-    }),
-    location: '',
-    age_days: 0,
-    num_birds: 0,
-    mortality_birds: 0,
-    bps_stock: 0,
-    b1_stock: 0,
-    b2_stock: 0,
-    bps_consumption: 0,
-    b1_consumption: 0,
-    b2_consumption: 0,
-    mortality_reason: '',
-    medicine: '',
-    image_mortality: '',
-    flock_id: flockId || '',
-  });
-
-  const [isLocationValid, setIsLocationValid] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
-  const [isFetchingLocation, setIsFetchingLocation] = useState(true);
+  const token = localStorage.getItem('accessToken');
 
   useEffect(() => {
-    if (flockId) {
-      setFormData((prevData) => ({ ...prevData, flock_id: flockId }));
+    const fetchFlocks = async () => {
+      try {
+        const response = await axios.get('http://localhost:8800/flock', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        setFlocks(response.data);
+      } catch (error) {
+        console.error('Error fetching flocks:', error);
+        toast.error('Failed to fetch flocks');
+      }
+    };
 
-      // Fetch farm location
-      fetchFarmLocation();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [flockId]);
+    fetchFlocks();
+  }, [token]);
 
-  const fetchFarmLocation = async () => {
+  useEffect(() => {
+    const handleEsc = (event) => {
+      if (event.key === 'Escape') {
+        setSelectedImage(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, []);
+
+  const userRole = parseInt(localStorage.getItem('userRole'), 10); // Convert the role to an integer
+  const handleMarkAsInComplete = async (flockId) => {
     try {
-      const token = localStorage.getItem('accessToken');
-      const response = await axios.get(
-        `https://cfbeta.safnepal.com/flock/${flockId}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      const farmLocation = response.data[0].Location.split(',').map(Number);
-      // Fetch user's current location
-      getCurrentLocation(farmLocation);
-    } catch (error) {
-      setErrorMessage('Failed to fetch farm location.');
-    }
-  };
-
-  const getCurrentLocation = (farmLocation) => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const userLocation = [
-            position.coords.latitude,
-            position.coords.longitude,
-          ];
-          const distance = calculateDistance(farmLocation, userLocation);
-
-          if (distance < 0.1) {
-            setIsLocationValid(true);
-            setFormData((prevData) => ({
-              ...prevData,
-              location: `${userLocation[0]}, ${userLocation[1]}`,
-            }));
-          } else {
-            setErrorMessage('You are outside the farm location.');
-          }
-          setIsFetchingLocation(false);
-        },
-        (error) => {
-          setErrorMessage('Failed to get your current location.');
-          setIsFetchingLocation(false);
-        }
-      );
-    } else {
-      setErrorMessage('Geolocation is not supported by this browser.');
-      setIsFetchingLocation(false);
-    }
-  };
-
-  // Haversine formula to calculate distance between two coordinates in km
-  const calculateDistance = ([lat1, lon1], [lat2, lon2]) => {
-    const toRad = (value) => (value * Math.PI) / 180;
-    const R = 6371; // Radius of the Earth in km
-    const dLat = toRad(lat2 - lat1);
-    const dLon = toRad(lon2 - lon1);
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(toRad(lat1)) *
-        Math.cos(toRad(lat2)) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const distance = R * c; // Distance in km
-    return distance;
-  };
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const accessToken = localStorage.getItem('accessToken');
-
-    // Basic validation
-    const requiredFields = [
-      'nepali_date',
-      'english_date',
-      'location',
-      'age_days',
-      'num_birds',
-      'mortality_birds',
-      'bps_stock',
-      'b1_stock',
-      'b2_stock',
-      'bps_consumption',
-      'b1_consumption',
-      'b2_consumption',
-      'flock_id',
-    ];
-    const missingFields = requiredFields.filter((field) => !formData[field]);
-
-    if (missingFields.length > 0) {
-      alert(`Missing required fields: ${missingFields.join(', ')}`);
-      return;
-    }
-
-    // Ensure numeric fields are numbers
-    const numericFields = [
-      'age_days',
-      'num_birds',
-      'mortality_birds',
-      'bps_stock',
-      'b1_stock',
-      'b2_stock',
-      'bps_consumption',
-      'b1_consumption',
-      'b2_consumption',
-      'flock_id',
-    ];
-    const dataToSend = { ...formData };
-    numericFields.forEach((field) => {
-      dataToSend[field] = Number(dataToSend[field]);
-    });
-
-    // Format the english_date
-    const englishDate = new Date(dataToSend.english_date);
-    dataToSend.english_date = format(englishDate, 'yyyy-MM-dd HH:mm:ss');
-
-    console.log('Sending data:', JSON.stringify(dataToSend, null, 2));
-
-    try {
-      const response = await axios.post(
-        'https://cfbeta.safnepal.com/flock-details',
-        dataToSend,
+      await axios.put(
+        `http://localhost:8800/flock/${flockId}`,
+        { complete_date: null },
         {
           headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
           },
         }
       );
-
-      console.log('Flock detail created:', response.data);
-      alert(
-        `Flock detail created successfully. Flock Detail ID: ${response.data.flockDetailId}`
+      toast.success('Flock marked as incomplete successfully');
+      // Optionally, refresh the flocks list or remove the completed flock
+      setFlocks((prevFlocks) =>
+        prevFlocks.filter((flock) => flock.id !== flockId)
       );
-      navigate(`/myflock/${flockId}`);
     } catch (error) {
-      console.error(
-        'Error creating flock detail:',
-        error.response?.data || error.message
-      );
-      if (error.response) {
-        console.error(
-          'Server responded with:',
-          error.response.status,
-          error.response.data
-        );
-        alert(
-          `Failed to create flock detail. Server error: ${error.response.status}. ${error.response.data.message}`
-        );
-      } else if (error.request) {
-        console.error('No response received:', error.request);
-        alert('Failed to create flock detail. No response from server.');
-      } else {
-        console.error('Error setting up request:', error.message);
-        alert(
-          'Failed to create flock detail. Please check your connection and try again.'
-        );
-      }
+      console.error('Error marking flock as complete:', error);
+      toast.error('Failed to mark flock as complete');
     }
   };
+  const columns = [
+    // {
+    //   id: 'english_date',
+    //   label: 'PlacementDate',
+    //   render: (value) => moment(value).format('YYYY-MM-DD'),
+    // },
+    {
+      id: 'nepali_date',
+      label: 'Placement Date',
+      render: (value) => (
+        <div className="flex justify-center items-center h-full">
+          {moment(value).format('YYYY-MM-DD')}
+        </div>
+      ),
+    },
+    {
+      id: 'flock_id',
+      label: 'Flock No',
+      render: (value) => (
+        <div className="flex justify-center items-center h-full">{value}</div>
+      ),
+    },
+    {
+      id: 'username_assigned_to',
+      label: 'Assigned To',
+      render: (value) => (
+        <span className="flex justify-center items-center px-1/3 py-1 text-xs md:text-sm font-medium">
+          {value}
+        </span>
+      ),
+    },
+    {
+      id: 'age',
+      label: 'Age',
+      render: (value) => (
+        <div className="flex justify-center items-center h-full">
+          {value || '-'}
+        </div>
+      ),
+    },
+    {
+      id: 'quantity',
+      label: 'Opening Birds',
+      render: (value) => (
+        <span className="flex justify-center items-center py-1 text-xs md:text-sm font-semibold rounded-full bg-green-100 text-green-800">
+          {value.toLocaleString()}
+        </span>
+      ),
+    },
+    {
+      id: 'cum_mortality',
+      label: 'Mortality',
+      render: (value) => (
+        <div className="flex justify-center items-center h-full">
+          {value || '-'}
+        </div>
+      ),
+    },
+    {
+      id: 'cum_sold',
+      label: 'Sale',
+      render: (value) => (
+        <div className="flex justify-center items-center h-full">
+          {value || '-'}
+        </div>
+      ),
+    },
+    {
+      id: 'closing_birds',
+      label: 'Closing Birds',
+      render: (value) => (
+        <div className="flex justify-center items-center py-1 text-xs md:text-sm font-semibold rounded-full bg-red-100 text-red-800">
+          {value || '-'}
+        </div>
+      ),
+    },
+    {
+      id: 'avg_wt',
+      label: 'Avg Wt',
+      render: (value) => (
+        <div className="flex justify-center items-center h-full">
+          {value || '-'}
+        </div>
+      ),
+    },
+    {
+      id: 'wt_days',
+      label: 'Weight Day',
+      render: (value) => (
+        <div className="flex justify-center items-center h-full">
+          {value || '-'}
+        </div>
+      ),
+    },
+    {
+      id: 'fcr',
+      label: 'FCR',
+      render: (value) => (
+        <div className="flex justify-center items-center h-full">
+          {value || '-'}
+        </div>
+      ),
+    },
+    {
+      id: 'feed_stock',
+      label: 'Feed Stock',
+      render: (value) => (
+        <div className="flex justify-center items-center h-full">
+          {value || '-'}
+        </div>
+      ),
+    },
+    {
+      id: 'caretaker_farmer',
+      label: 'Caretaker Farmer',
+      render: (value) => (
+        <span className="px-2 py-1 text-xs md:text-sm ">{value}</span>
+      ),
+    },
+    {
+      id: 'address',
+      label: 'Address',
+      render: (value) => (
+        <span className="text-gray-800 flex justify-center items-center">
+          {value}
+        </span>
+      ),
+    },
+    // {
+    //   id: 'image_preview',
+    //   label: 'Flock Image',
+    //   render: (_, row) => (
+    //     <div
+    //       onClick={(e) => {
+    //         e.stopPropagation();
+    //         if (row.image_location) {
+    //           setSelectedImage(row.image_location);
+    //         }
+    //       }}
+    //     >
+    //       <ImagePreview
+    //         src={row.image_location}
+    //         alt={`Flock ${row.flock_id}`}
+    //       />
+    //     </div>
+    //   ),
+    // },
+    {
+      id: 'image_preview',
+      label: 'Flock Image',
+      render: (_, row) => (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            if (row.image_location) {
+              setSelectedImage(row.image_location);
+            }
+          }}
+          className={`inline-flex items-center px-3 py-1 text-sm font-medium rounded-full transition-colors duration-200 ${
+            row.image_location
+              ? 'text-purple-700 bg-purple-50 hover:bg-purple-100'
+              : 'text-gray-500 bg-gray-100 cursor-not-allowed'
+          }`}
+          disabled={!row.image_location}
+        >
+          {row.image_location ? 'View Image' : 'No Image'}
+        </button>
+      ),
+    },
+    {
+      id: 'Location',
+      label: 'Location',
+      render: (value) => (
+        <a
+          href={`https://www.google.com/maps?q=${value}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center px-3 py-1 text-sm font-medium text-blue-600 bg-blue-50 rounded-full hover:bg-blue-100 transition-colors duration-200"
+          onClick={(e) => e.stopPropagation()}
+        >
+          View Location
+        </a>
+      ),
+    },
+    ...(userRole === 0 || userRole === 1
+      ? [
+          {
+            label: 'Action',
+            render: (_, row) => (
+              <div className="flex gap-2 items-center">
+                <button
+                  className="px-3 py-1 text-white bg-blue-500 rounded hover:bg-blue-600 flex items-center gap-1"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/editflock/${row.id}`);
+                  }}
+                >
+                  <Edit className="w-4 h-4" /> Edit
+                </button>
+                <button
+                  className="px-3 py-1 text-white bg-orange-500 rounded hover:bg-yellow-600 flex items-center gap-1"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleMarkAsInComplete(row.id);
+                  }}
+                >
+                  <CircleOff className="w-4 h-4" /> InComplete
+                </button>
+                <div onClick={(e) => e.stopPropagation()}>
+                  <DeleteConfirmDialog
+                  // ... existing props
+                  />
+                </div>
+              </div>
+            ),
+          },
+        ]
+      : []),
+  ];
+  const incompleteFlocks = flocks.filter(
+    (flock) => flock.complete_date !== null
+  );
 
   return (
-    <div className="p-4 max-w-lg mx-auto">
-      <h2 className="text-2xl font-bold mb-4">Add Flock Detail</h2>
+    <div className="max-w-[99%] mx-auto">
+      <div className="flex justify-between items-center mb-3">
+        <h2 className="text-3xl md:text-3xl font-bold text-[#77B94B] select-none">
+          Completed Flocks
+        </h2>
+      </div>
 
-      {isFetchingLocation ? (
-        <div>Fetching your location...</div>
-      ) : errorMessage ? (
-        <div className="text-red-500">{errorMessage}</div>
-      ) : (
-        <form
-          onSubmit={handleSubmit}
-          className="bg-white p-6 rounded-lg shadow-md space-y-4"
-          disabled={!isLocationValid}
-        >
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Nepali Date <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              name="nepali_date"
-              value={formData.nepali_date}
-              onChange={handleChange}
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              placeholder="YYYY-MM-DD"
-            />
-          </div>
-          {/* The rest of the form fields remain the same */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Location <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              name="location"
-              value={formData.location}
-              readOnly
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed" // Add bg-gray-100 for a disabled look
-              placeholder="Latitude, Longitude"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Age (Days) <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="number"
-              name="age_days"
-              value={formData.age_days}
-              onChange={handleChange}
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Number of Birds <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="number"
-              name="num_birds"
-              value={formData.num_birds}
-              onChange={handleChange}
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Mortality Birds <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="number"
-              name="mortality_birds"
-              value={formData.mortality_birds}
-              onChange={handleChange}
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              BPS Stock <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="number"
-              name="bps_stock"
-              value={formData.bps_stock}
-              onChange={handleChange}
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              B1 Stock <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="number"
-              name="b1_stock"
-              value={formData.b1_stock}
-              onChange={handleChange}
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              B2 Stock <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="number"
-              name="b2_stock"
-              value={formData.b2_stock}
-              onChange={handleChange}
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              BPS Consumption <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="number"
-              name="bps_consumption"
-              value={formData.bps_consumption}
-              onChange={handleChange}
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              B1 Consumption <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="number"
-              name="b1_consumption"
-              value={formData.b1_consumption}
-              onChange={handleChange}
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              B2 Consumption <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="number"
-              name="b2_consumption"
-              value={formData.b2_consumption}
-              onChange={handleChange}
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Mortality Reason
-            </label>
-            <input
-              type="text"
-              name="mortality_reason"
-              value={formData.mortality_reason}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              placeholder="Enter mortality reason"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Medicine
-            </label>
-            <input
-              type="text"
-              name="medicine"
-              value={formData.medicine}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              placeholder="Enter medicine name"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Image Mortality
-            </label>
-            <input
-              type="text"
-              name="image_mortality"
-              value={formData.image_mortality}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              placeholder="Enter image location"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Flock ID
-            </label>
-            <input
-              type="number"
-              name="flock_id"
-              value={formData.flock_id}
-              readOnly
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
-            />
-          </div>
-          <button
-            type="submit"
-            className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-            disabled={!isLocationValid}
-          >
-            Submit
-          </button>
-        </form>
-      )}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <ReusableSortableTable
+          columns={columns}
+          rows={incompleteFlocks}
+          defaultSortColumn="flock_id"
+          navigateOnClick={true}
+          getNavigationPath={(row) => `/myflock/${row.id}`}
+        />
+      </div>
+
+      <ImageModal
+        isOpen={!!selectedImage}
+        onClose={() => setSelectedImage(null)}
+        imageSrc={selectedImage}
+      />
     </div>
   );
 };
 
-export default AddFlockDetail;
+export default Archieves;

@@ -7,17 +7,19 @@ import ReusableSortableTable from '../components/ReusableSortableTable';
 const UserList = () => {
   const [users, setUsers] = useState([]);
   const navigate = useNavigate();
-
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
     const fetchUsers = async () => {
       try {
         const token = localStorage.getItem('accessToken');
-        const response = await axios.get('https://cfbeta.safnepal.com/users', {
+        const response = await axios.get('http://localhost:8800/users', {
           headers: { Authorization: `Bearer ${token}` },
         });
         setUsers(response.data);
+        setLoading(false);
       } catch (error) {
         console.error('Error fetching users:', error);
+        setLoading(false);
       }
     };
 
@@ -60,6 +62,7 @@ const UserList = () => {
           columns={columns}
           rows={rows}
           defaultSortColumn="username"
+          loading={loading}
         />
       </div>
     </div>
