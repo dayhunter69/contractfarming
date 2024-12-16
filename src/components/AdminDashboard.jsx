@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   LineChart,
   Line,
@@ -16,205 +16,299 @@ import {
   ResponsiveContainer,
   Cell,
 } from 'recharts';
-import { Container, Row, Col, Card, Form } from 'react-bootstrap';
-import 'bootstrap/dist/css/bootstrap.min.css';
 
-const mockData = {
-  farm1: {
-    flockAnalysis: [
-      { name: 'Week 1', healthy: 95, sick: 3, deceased: 2 },
-      { name: 'Week 2', healthy: 93, sick: 5, deceased: 2 },
-      { name: 'Week 3', healthy: 90, sick: 7, deceased: 3 },
-      { name: 'Week 4', healthy: 88, sick: 8, deceased: 4 },
-    ],
-    consumptionAnalysis: [
-      { name: 'Week 1', water: 100, feed: 50 },
-      { name: 'Week 2', water: 120, feed: 70 },
-      { name: 'Week 3', water: 140, feed: 90 },
-      { name: 'Week 4', water: 160, feed: 110 },
-    ],
-    weightAnalysis: [
-      { name: 'Week 1', weight: 0.2 },
-      { name: 'Week 2', weight: 0.5 },
-      { name: 'Week 3', weight: 0.9 },
-      { name: 'Week 4', weight: 1.4 },
-    ],
-    fcrAnalysis: [
-      { name: 'Week 1', fcr: 1.1 },
-      { name: 'Week 2', fcr: 1.3 },
-      { name: 'Week 3', fcr: 1.5 },
-      { name: 'Week 4', fcr: 1.7 },
-    ],
-  },
-  farm2: {
-    flockAnalysis: [
-      { name: 'Week 1', healthy: 97, sick: 2, deceased: 1 },
-      { name: 'Week 2', healthy: 95, sick: 3, deceased: 2 },
-      { name: 'Week 3', healthy: 92, sick: 5, deceased: 3 },
-      { name: 'Week 4', healthy: 90, sick: 7, deceased: 3 },
-    ],
-    consumptionAnalysis: [
-      { name: 'Week 1', water: 110, feed: 55 },
-      { name: 'Week 2', water: 130, feed: 75 },
-      { name: 'Week 3', water: 150, feed: 95 },
-      { name: 'Week 4', water: 170, feed: 115 },
-    ],
-    weightAnalysis: [
-      { name: 'Week 1', weight: 0.22 },
-      { name: 'Week 2', weight: 0.55 },
-      { name: 'Week 3', weight: 0.95 },
-      { name: 'Week 4', weight: 1.5 },
-    ],
-    fcrAnalysis: [
-      { name: 'Week 1', fcr: 1.0 },
-      { name: 'Week 2', fcr: 1.2 },
-      { name: 'Week 3', fcr: 1.4 },
-      { name: 'Week 4', fcr: 1.6 },
-    ],
-  },
-};
-
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+// Updated color palette - more eye-pleasing colors
+const COLORS = ['#60a5fa', '#34d399', '#f472b6', '#a78bfa'];
 
 const AdminDashboard = () => {
-  const [selectedFarm, setSelectedFarm] = useState('farm1');
+  const [flockList, setFlockList] = useState([]);
+  const [selectedFlock, setSelectedFlock] = useState('');
+  const [flockDetails, setFlockDetails] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const data = mockData[selectedFarm];
+  const token = localStorage.getItem('accessToken');
+
+  // Fetch flock list
+  useEffect(() => {
+    const fetchFlockList = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await fetch('http://localhost:8800/flock/list', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const data = await response.json();
+        setFlockList(data);
+        if (data.length > 0) {
+          setSelectedFlock(data[0].id);
+        }
+      } catch (error) {
+        console.error('Error fetching flock list:', error);
+        setError('Failed to fetch flock list');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFlockList();
+  }, []);
+
+  // Fetch flock details
+  useEffect(() => {
+    const fetchFlockDetails = async () => {
+      if (!selectedFlock) return;
+
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await fetch(
+          `http://localhost:8800/flock-details/getanalysis/${selectedFlock}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        const data = await response.json();
+        setFlockDetails(data);
+      } catch (error) {
+        console.error('Error fetching flock details:', error);
+        setError('Failed to fetch flock details');
+        setFlockDetails(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFlockDetails();
+  }, [selectedFlock]);
+
+  const prepareChartData = (analysisData) => {
+    if (!analysisData) return [];
+
+    // Create a map of existing data points
+    const dataMap = new Map(analysisData.map((item) => [item.age_days, item]));
+
+    // Generate data for all weeks, filling in zeros for missing data
+    return Array.from({ length: 8 }, (_, index) => {
+      const weekNum = index + 1;
+      const ageInDays = weekNum * 7;
+      const existingData = dataMap.get(ageInDays) || {};
+
+      return {
+        name: `Week ${weekNum}`,
+        fcr: existingData.generated_fcr || 0,
+        weight: existingData.avg_weight || 0,
+        feed: existingData.total_feed_consumption || 0,
+      };
+    });
+  };
+
+  const prepareFlockAnalysisData = (analysisData, mortalityData) => {
+    if (!analysisData || !mortalityData) return [];
+
+    const { total_birds, total_deceased } = mortalityData;
+
+    return Array.from({ length: 8 }, (_, index) => {
+      const weekNum = index + 1;
+      const weekRatio = (weekNum * 7) / 56;
+      const deceased = Math.round(total_deceased * weekRatio);
+
+      return {
+        name: `Week ${weekNum}`,
+        healthy: total_birds - deceased,
+        deceased: deceased,
+      };
+    });
+  };
+
+  const filteredFlockList = flockList.filter((flock) =>
+    flock.flock_id.toUpperCase().includes(searchTerm.toUpperCase())
+  );
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-xl text-gray-500">Loading...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-xl text-red-500">{error}</div>
+      </div>
+    );
+  }
 
   return (
-    <Container fluid className="p-4 sm:p-0">
-      <Form.Group className="mb-4">
-        <Form.Select
-          value={selectedFarm}
-          onChange={(e) => setSelectedFarm(e.target.value)}
-          style={{ width: '180px' }}
-        >
-          <option value="farm1">Farm 1</option>
-          <option value="farm2">Farm 2</option>
-        </Form.Select>
-      </Form.Group>
+    <div className="p-4 bg-gray-50 min-h-screen">
+      <div className="max-w-7xl mx-auto">
+        {/* Header Section */}
+        <div className="bg-white rounded-lg shadow mb-6 p-4">
+          <div className="max-w-xl">
+            <input
+              type="text"
+              placeholder="Search Flock ID"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full mb-2 p-2 border rounded"
+            />
+            <select
+              value={selectedFlock}
+              onChange={(e) => setSelectedFlock(e.target.value)}
+              className="w-full p-2 border rounded"
+            >
+              {filteredFlockList.map((flock) => (
+                <option key={flock.id} value={flock.id}>
+                  {flock.flock_id.toUpperCase()}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
 
-      <Row>
-        <Col md={6} className="mb-4">
-          <Card>
-            <Card.Header>
-              <Card.Title>Flock Analysis</Card.Title>
-            </Card.Header>
-            <Card.Body>
-              <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={data.flockAnalysis}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Area
-                    type="monotone"
-                    dataKey="healthy"
-                    stackId="1"
-                    stroke="#8884d8"
-                    fill="#8884d8"
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="sick"
-                    stackId="1"
-                    stroke="#82ca9d"
-                    fill="#82ca9d"
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="deceased"
-                    stackId="1"
-                    stroke="#ffc658"
-                    fill="#ffc658"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </Card.Body>
-          </Card>
-        </Col>
-
-        <Col md={6} className="mb-4">
-          <Card>
-            <Card.Header>
-              <Card.Title>Consumption Analysis</Card.Title>
-            </Card.Header>
-            <Card.Body>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={data.consumptionAnalysis}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="water" fill="#8884d8" />
-                  <Bar dataKey="feed" fill="#82ca9d" />
-                </BarChart>
-              </ResponsiveContainer>
-            </Card.Body>
-          </Card>
-        </Col>
-
-        <Col md={6} className="mb-4">
-          <Card>
-            <Card.Header>
-              <Card.Title>Weight Analysis</Card.Title>
-            </Card.Header>
-            <Card.Body>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={data.weightAnalysis}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Line
-                    type="monotone"
-                    dataKey="weight"
-                    stroke="#8884d8"
-                    activeDot={{ r: 8 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </Card.Body>
-          </Card>
-        </Col>
-
-        <Col md={6} className="mb-4">
-          <Card>
-            <Card.Header>
-              <Card.Title>FCR Analysis</Card.Title>
-            </Card.Header>
-            <Card.Body>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={data.fcrAnalysis}
-                    dataKey="fcr"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={80}
-                    fill="#8884d8"
-                    label
-                  >
-                    {data.fcrAnalysis.map((entry, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={COLORS[index % COLORS.length]}
+        {flockDetails && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Flock Analysis Chart */}
+            <div className="bg-white rounded-lg shadow">
+              <div className="p-4 border-b">
+                <h5 className="text-lg font-semibold">Flock Analysis</h5>
+              </div>
+              <div className="p-4">
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart
+                      data={prepareFlockAnalysisData(
+                        flockDetails.analysis,
+                        flockDetails.mortality
+                      )}
+                      margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Area
+                        type="monotone"
+                        dataKey="healthy"
+                        stackId="1"
+                        stroke={COLORS[0]}
+                        fill={COLORS[0]}
+                        name="Healthy Birds"
                       />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-    </Container>
+                      <Area
+                        type="monotone"
+                        dataKey="deceased"
+                        stackId="1"
+                        stroke={COLORS[2]}
+                        fill={COLORS[2]}
+                        name="Deceased Birds"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+
+            {/* Feed Consumption Chart */}
+            <div className="bg-white rounded-lg shadow">
+              <div className="p-4 border-b">
+                <h5 className="text-lg font-semibold">Feed Consumption</h5>
+              </div>
+              <div className="p-4">
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={prepareChartData(flockDetails.analysis)}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Bar
+                        dataKey="feed"
+                        fill={COLORS[1]}
+                        name="Feed Consumption"
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+
+            {/* Weight Analysis Chart */}
+            <div className="bg-white rounded-lg shadow">
+              <div className="p-4 border-b">
+                <h5 className="text-lg font-semibold">Weight Progression</h5>
+              </div>
+              <div className="p-4">
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={prepareChartData(flockDetails.analysis)}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Line
+                        type="monotone"
+                        dataKey="weight"
+                        stroke={COLORS[2]}
+                        strokeWidth={2}
+                        dot={{ r: 4 }}
+                        activeDot={{ r: 8 }}
+                        name="Average Weight"
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+
+            {/* FCR Analysis Chart */}
+            <div className="bg-white rounded-lg shadow">
+              <div className="p-4 border-b">
+                <h5 className="text-lg font-semibold">FCR Analysis</h5>
+              </div>
+              <div className="p-4">
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={prepareChartData(flockDetails.analysis)}
+                        dataKey="fcr"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={80}
+                        label
+                      >
+                        {prepareChartData(flockDetails.analysis).map(
+                          (entry, index) => (
+                            <Cell
+                              key={`cell-${index}`}
+                              fill={COLORS[index % COLORS.length]}
+                            />
+                          )
+                        )}
+                      </Pie>
+                      <Tooltip />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
 
